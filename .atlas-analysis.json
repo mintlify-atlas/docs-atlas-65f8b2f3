@@ -1,0 +1,179 @@
+{
+  "projectType": "framework",
+  "projectName": "Ant",
+  "projectDescription": "A lightweight JavaScript runtime with built-in package manager, async/await, HTTP servers, and embeddable C API",
+  "theme": "aspen",
+  "primaryColor": "#D97706",
+  "lightColor": "#FBBF24",
+  "darkColor": "#92400E",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/runtime",
+              "concepts/event-loop",
+              "concepts/modules",
+              "concepts/async-await"
+            ]
+          },
+          {
+            "group": "Building from Source",
+            "pages": [
+              "building/overview",
+              "building/unix-macos",
+              "building/windows",
+              "building/options"
+            ]
+          },
+          {
+            "group": "Package Manager",
+            "pages": [
+              "package-manager/overview",
+              "package-manager/commands",
+              "package-manager/configuration",
+              "package-manager/lockfile"
+            ]
+          },
+          {
+            "group": "Embedding",
+            "pages": [
+              "embedding/getting-started",
+              "embedding/api-reference",
+              "embedding/examples"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/http-server",
+              "guides/file-system",
+              "guides/child-processes",
+              "guides/crypto",
+              "guides/ffi"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Global",
+            "pages": [
+              "api/ant",
+              "api/console",
+              "api/timers",
+              "api/fetch"
+            ]
+          },
+          {
+            "group": "Built-in Modules",
+            "pages": [
+              "api/modules/buffer",
+              "api/modules/crypto",
+              "api/modules/events",
+              "api/modules/fs",
+              "api/modules/path",
+              "api/modules/process",
+              "api/modules/child-process",
+              "api/modules/os",
+              "api/modules/server",
+              "api/modules/ffi",
+              "api/modules/lmdb",
+              "api/modules/readline",
+              "api/modules/worker-threads"
+            ]
+          },
+          {
+            "group": "Web APIs",
+            "pages": [
+              "api/web/url",
+              "api/web/text-encoder",
+              "api/web/storage"
+            ]
+          },
+          {
+            "group": "C API",
+            "pages": [
+              "api/c/runtime",
+              "api/c/values",
+              "api/c/functions",
+              "api/c/objects"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "CLI Reference",
+        "groups": [
+          {
+            "group": "Commands",
+            "pages": [
+              "cli/run",
+              "cli/repl",
+              "cli/init",
+              "cli/install",
+              "cli/add",
+              "cli/remove",
+              "cli/update",
+              "cli/run-script",
+              "cli/exec"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Lightweight JavaScript runtime built in C",
+    "Full ES6+ support with async/await and modules",
+    "Built-in package manager compatible with npm registry",
+    "HTTP/HTTPS server with routing support",
+    "Foreign Function Interface (FFI) for C libraries",
+    "Embeddable as a C library (libant)",
+    "Cross-platform (Linux, macOS, Windows)",
+    "REPL with interactive debugging",
+    "Built-in crypto, file system, and networking APIs",
+    "Worker threads and shared memory support"
+  ],
+  "publicApiSurface": [
+    "Ant.version",
+    "Ant.serve()",
+    "Ant.platform",
+    "Ant.arch",
+    "console.log/warn/error",
+    "setTimeout/setInterval",
+    "fetch()",
+    "ant:buffer",
+    "ant:crypto",
+    "ant:events",
+    "ant:fs",
+    "ant:path",
+    "ant:process",
+    "ant:child_process",
+    "ant:os",
+    "ant:server",
+    "ant:ffi",
+    "ant:lmdb",
+    "ant:readline",
+    "ant:worker_threads",
+    "js_create()",
+    "js_eval_bytecode()",
+    "js_mkfun()",
+    "js_mkobj()",
+    "js_set()",
+    "js_get()"
+  ]
+}
