@@ -1,0 +1,645 @@
+---
+title: C API Reference
+description: Complete reference for the libant C API
+---
+
+## Runtime Management
+
+### js_create
+
+```c
+ant_t *js_create(void *buf, size_t len);
+```
+
+Creates a JavaScript runtime using a pre-allocated buffer.
+
+**Parameters:**
+- `buf` - Pre-allocated memory buffer
+- `len` - Size of the buffer in bytes
+
+**Returns:** Pointer to the runtime, or `NULL` on failure
+
+### js_create_dynamic
+
+```c
+ant_t *js_create_dynamic();
+```
+
+Creates a JavaScript runtime with dynamic memory allocation (recommended).
+
+**Returns:** Pointer to the runtime, or `NULL` on failure
+
+### js_destroy
+
+```c
+void js_destroy(ant_t *js);
+```
+
+Destroys the runtime and frees all associated resources.
+
+**Parameters:**
+- `js` - Runtime instance
+
+### js_setstackbase
+
+```c
+void js_setstackbase(ant_t *js, void *base);
+```
+
+Sets the stack base pointer for stack overflow detection.
+
+**Parameters:**
+- `js` - Runtime instance
+- `base` - Pointer to stack base (typically a local variable address)
+
+### js_setstacklimit
+
+```c
+void js_setstacklimit(ant_t *js, size_t limit);
+```
+
+Sets the maximum stack size.
+
+**Parameters:**
+- `js` - Runtime instance
+- `limit` - Maximum stack size in bytes
+
+## Evaluation Functions
+
+### js_eval_bytecode
+
+```c
+jsval_t js_eval_bytecode(ant_t *js, const char *code, size_t len);
+```
+
+Evaluates JavaScript bytecode.
+
+**Parameters:**
+- `js` - Runtime instance
+- `code` - JavaScript source code
+- `len` - Length of code string
+
+**Returns:** Result value or error
+
+### js_eval_bytecode_eval
+
+```c
+jsval_t js_eval_bytecode_eval(ant_t *js, const char *code, size_t len);
+```
+
+Evaluates JavaScript code in eval mode (expression evaluation).
+
+**Parameters:**
+- `js` - Runtime instance
+- `code` - JavaScript source code
+- `len` - Length of code string
+
+**Returns:** Result value or error
+
+### js_eval_bytecode_module
+
+```c
+jsval_t js_eval_bytecode_module(ant_t *js, const char *code, size_t len);
+```
+
+Evaluates JavaScript code as an ES module.
+
+**Parameters:**
+- `js` - Runtime instance
+- `code` - JavaScript source code
+- `len` - Length of code string
+
+**Returns:** Result value or error
+
+### js_eval_bytecode_repl
+
+```c
+jsval_t js_eval_bytecode_repl(ant_t *js, const char *code, size_t len);
+```
+
+Evaluates JavaScript code in REPL mode.
+
+**Parameters:**
+- `js` - Runtime instance
+- `code` - JavaScript source code
+- `len` - Length of code string
+
+**Returns:** Result value or error
+
+## Value Creation
+
+### js_mknum
+
+```c
+jsval_t js_mknum(double value);
+```
+
+Creates a number value.
+
+**Parameters:**
+- `value` - Numeric value
+
+**Returns:** JavaScript number value
+
+### js_mkstr
+
+```c
+jsval_t js_mkstr(ant_t *js, const void *data, size_t len);
+```
+
+Creates a string value.
+
+**Parameters:**
+- `js` - Runtime instance
+- `data` - String data
+- `len` - String length
+
+**Returns:** JavaScript string value
+
+### js_mkundef
+
+```c
+jsval_t js_mkundef(void);
+```
+
+Creates an undefined value.
+
+**Returns:** JavaScript undefined value
+
+### js_mknull
+
+```c
+jsval_t js_mknull(void);
+```
+
+Creates a null value.
+
+**Returns:** JavaScript null value
+
+### js_mkobj
+
+```c
+jsval_t js_mkobj(ant_t *js);
+```
+
+Creates an empty object.
+
+**Parameters:**
+- `js` - Runtime instance
+
+**Returns:** JavaScript object value
+
+### js_mkarr
+
+```c
+jsval_t js_mkarr(ant_t *js);
+```
+
+Creates an empty array.
+
+**Parameters:**
+- `js` - Runtime instance
+
+**Returns:** JavaScript array value
+
+### js_mkfun
+
+```c
+jsval_t js_mkfun(jsval_t (*fn)(ant_t *, jsval_t *, int));
+```
+
+Creates a function from a C callback.
+
+**Parameters:**
+- `fn` - C function pointer with signature `(ant_t *js, jsval_t *args, int nargs)`
+
+**Returns:** JavaScript function value
+
+**Example:**
+```c
+static jsval_t my_function(ant_t *js, jsval_t *args, int nargs) {
+  // Function implementation
+  return js_mknum(42);
+}
+
+jsval_t fn = js_mkfun(my_function);
+```
+
+### js_mkbigint
+
+```c
+jsval_t js_mkbigint(ant_t *js, const char *digits, size_t len, bool negative);
+```
+
+Creates a BigInt value.
+
+**Parameters:**
+- `js` - Runtime instance
+- `digits` - String of decimal digits
+- `len` - Length of digits string
+- `negative` - Whether the value is negative
+
+**Returns:** JavaScript BigInt value
+
+### js_mksym
+
+```c
+jsval_t js_mksym(ant_t *js, const char *desc);
+```
+
+Creates a Symbol value.
+
+**Parameters:**
+- `js` - Runtime instance
+- `desc` - Symbol description
+
+**Returns:** JavaScript Symbol value
+
+## Value Inspection
+
+### vtype
+
+```c
+uint8_t vtype(jsval_t val);
+```
+
+Gets the type of a JavaScript value.
+
+**Parameters:**
+- `val` - JavaScript value
+
+**Returns:** Type constant (T_NUM, T_STR, T_BOOL, T_OBJ, T_ERR, T_UNDEF, T_NULL)
+
+### js_getnum
+
+```c
+double js_getnum(jsval_t val);
+```
+
+Extracts the numeric value from a number.
+
+**Parameters:**
+- `val` - JavaScript number value
+
+**Returns:** Double-precision floating-point value
+
+### js_getstr
+
+```c
+char *js_getstr(ant_t *js, jsval_t val, size_t *len);
+```
+
+Extracts the string data from a string value.
+
+**Parameters:**
+- `js` - Runtime instance
+- `val` - JavaScript string value
+- `len` - Output parameter for string length
+
+**Returns:** Pointer to string data
+
+### js_str
+
+```c
+const char *js_str(ant_t *js, jsval_t val);
+```
+
+Converts any value to a string representation.
+
+**Parameters:**
+- `js` - Runtime instance
+- `val` - JavaScript value
+
+**Returns:** C string representation
+
+### js_truthy
+
+```c
+bool js_truthy(ant_t *js, jsval_t val);
+```
+
+Checks if a value is truthy.
+
+**Parameters:**
+- `js` - Runtime instance
+- `val` - JavaScript value
+
+**Returns:** `true` if truthy, `false` otherwise
+
+## Object Operations
+
+### js_glob
+
+```c
+jsval_t js_glob(ant_t *js);
+```
+
+Gets the global object.
+
+**Parameters:**
+- `js` - Runtime instance
+
+**Returns:** Global object value
+
+### js_set
+
+```c
+void js_set(ant_t *js, jsval_t obj, const char *key, jsval_t val);
+```
+
+Sets a property on an object.
+
+**Parameters:**
+- `js` - Runtime instance
+- `obj` - Object value
+- `key` - Property name (C string)
+- `val` - Property value
+
+### js_get
+
+```c
+jsval_t js_get(ant_t *js, jsval_t obj, const char *key);
+```
+
+Gets a property from an object.
+
+**Parameters:**
+- `js` - Runtime instance
+- `obj` - Object value
+- `key` - Property name (C string)
+
+**Returns:** Property value or undefined
+
+### js_del
+
+```c
+bool js_del(ant_t *js, jsval_t obj, const char *key);
+```
+
+Deletes a property from an object.
+
+**Parameters:**
+- `js` - Runtime instance
+- `obj` - Object value
+- `key` - Property name
+
+**Returns:** `true` if deleted, `false` otherwise
+
+### js_set_proto
+
+```c
+void js_set_proto(ant_t *js, jsval_t obj, jsval_t proto);
+```
+
+Sets the prototype of an object.
+
+**Parameters:**
+- `js` - Runtime instance
+- `obj` - Object value
+- `proto` - Prototype object
+
+### js_get_proto
+
+```c
+jsval_t js_get_proto(ant_t *js, jsval_t obj);
+```
+
+Gets the prototype of an object.
+
+**Parameters:**
+- `js` - Runtime instance
+- `obj` - Object value
+
+**Returns:** Prototype object
+
+## Array Operations
+
+### js_arr_len
+
+```c
+jsoff_t js_arr_len(ant_t *js, jsval_t arr);
+```
+
+Gets the length of an array.
+
+**Parameters:**
+- `js` - Runtime instance
+- `arr` - Array value
+
+**Returns:** Array length
+
+### js_arr_get
+
+```c
+jsval_t js_arr_get(ant_t *js, jsval_t arr, jsoff_t idx);
+```
+
+Gets an element from an array.
+
+**Parameters:**
+- `js` - Runtime instance
+- `arr` - Array value
+- `idx` - Array index
+
+**Returns:** Element value
+
+### js_arr_push
+
+```c
+void js_arr_push(ant_t *js, jsval_t arr, jsval_t val);
+```
+
+Pushes a value to the end of an array.
+
+**Parameters:**
+- `js` - Runtime instance
+- `arr` - Array value
+- `val` - Value to push
+
+## Property Iteration
+
+### js_prop_iter_begin
+
+```c
+ant_iter_t js_prop_iter_begin(ant_t *js, jsval_t obj);
+```
+
+Begins iterating over object properties.
+
+**Parameters:**
+- `js` - Runtime instance
+- `obj` - Object value
+
+**Returns:** Iterator handle
+
+### js_prop_iter_next
+
+```c
+bool js_prop_iter_next(ant_iter_t *iter, const char **key, 
+                       size_t *key_len, jsval_t *value);
+```
+
+Gets the next property in the iteration.
+
+**Parameters:**
+- `iter` - Iterator handle
+- `key` - Output parameter for property name
+- `key_len` - Output parameter for name length
+- `value` - Output parameter for property value
+
+**Returns:** `true` if more properties exist, `false` when done
+
+### js_prop_iter_end
+
+```c
+void js_prop_iter_end(ant_iter_t *iter);
+```
+
+Ends property iteration and frees resources.
+
+**Parameters:**
+- `iter` - Iterator handle
+
+## Context Functions
+
+### js_getthis
+
+```c
+jsval_t js_getthis(ant_t *js);
+```
+
+Gets the current `this` value.
+
+**Parameters:**
+- `js` - Runtime instance
+
+**Returns:** Current `this` value
+
+### js_setthis
+
+```c
+void js_setthis(ant_t *js, jsval_t val);
+```
+
+Sets the current `this` value.
+
+**Parameters:**
+- `js` - Runtime instance
+- `val` - New `this` value
+
+### js_getcurrentfunc
+
+```c
+jsval_t js_getcurrentfunc(ant_t *js);
+```
+
+Gets the currently executing function.
+
+**Parameters:**
+- `js` - Runtime instance
+
+**Returns:** Current function value
+
+## Root Management
+
+### js_root
+
+```c
+jshdl_t js_root(ant_t *js, jsval_t val);
+```
+
+Roots a value to prevent garbage collection.
+
+**Parameters:**
+- `js` - Runtime instance
+- `val` - Value to root
+
+**Returns:** Root handle
+
+### js_unroot
+
+```c
+void js_unroot(ant_t *js, jshdl_t handle);
+```
+
+Unroots a previously rooted value.
+
+**Parameters:**
+- `js` - Runtime instance
+- `handle` - Root handle
+
+### js_deref
+
+```c
+jsval_t js_deref(ant_t *js, jshdl_t handle);
+```
+
+Dereferences a root handle to get the value.
+
+**Parameters:**
+- `js` - Runtime instance
+- `handle` - Root handle
+
+**Returns:** Rooted value
+
+## Utility Functions
+
+### js_chkargs
+
+```c
+bool js_chkargs(jsval_t *args, int nargs, const char *types);
+```
+
+Checks if function arguments match expected types.
+
+**Parameters:**
+- `args` - Argument array
+- `nargs` - Number of arguments
+- `types` - Type specification string (e.g., "dd" for two numbers, "ds" for number and string)
+
+**Returns:** `true` if arguments match, `false` otherwise
+
+**Type codes:**
+- `d` - Number
+- `s` - String
+- `b` - Boolean
+- `o` - Object
+- `f` - Function
+
+### js_set_filename
+
+```c
+void js_set_filename(ant_t *js, const char *filename);
+```
+
+Sets the current filename for error reporting.
+
+**Parameters:**
+- `js` - Runtime instance
+- `filename` - Filename string
+
+## Constants
+
+### Boolean Values
+
+```c
+#define js_true   // JavaScript true
+#define js_false  // JavaScript false
+#define js_bool(x) // Converts C bool to JS boolean
+```
+
+### Special Numbers
+
+```c
+#define JS_NAN      // Not a Number
+#define JS_NEG_NAN  // Negative NaN
+#define JS_INF      // Positive Infinity
+#define JS_NEG_INF  // Negative Infinity
+```
+
+### Helper Macros
+
+```c
+#define ANT_STRING(s)  // Creates string from C string literal
+#define ANT_PTR(ptr)   // Converts pointer to number
+```

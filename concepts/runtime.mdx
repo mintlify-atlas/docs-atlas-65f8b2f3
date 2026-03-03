@@ -1,0 +1,250 @@
+---
+title: Runtime architecture
+description: Learn about Ant's runtime architecture, memory management, and core components
+---
+
+Ant is a lightweight JavaScript runtime built from the ground up with a custom VM, efficient memory management, and full async/await support. The runtime is designed to be compact yet powerful, providing modern JavaScript features in a small footprint.
+
+## Core architecture
+
+The Ant runtime consists of several key components that work together:
+
+### Silver VM
+
+At the heart of Ant is the Silver VM, a custom JavaScript execution engine that compiles and runs JavaScript code. The VM supports two execution modes:
+
+- **SV_VM_MAIN** - Standard synchronous execution
+- **SV_VM_ASYNC** - Async function execution with suspend/resume capabilities
+
+The VM uses a bytecode compiler that transforms JavaScript source into optimized bytecode, which is then executed by the interpreter.
+
+```c
+// VM creation from runtime.c
+sv_vm_t *sv_vm_create(ant_t *js, sv_vm_kind_t kind);
+```
+
+### NaN-boxing value representation
+
+Ant uses NaN-boxing to efficiently represent JavaScript values in 64 bits. This technique stores type information in the unused bits of IEEE 754 NaN values:
+
+```c
+// From ant.c - value types
+typedef enum {
+  T_UNDEF, T_NULL, T_BOOL, T_NUM, T_BIGINT, T_STR,
+  T_SYMBOL, T_OBJ, T_ARR, T_FUNC, T_CFUNC, T_CLOSURE,
+  T_PROMISE, T_GENERATOR, T_PROP, T_ERR, T_TYPEDARRAY,
+  T_FFI, T_NTARG
+} value_type_t;
+```
+
+This design allows Ant to represent all JavaScript types efficiently without additional heap allocations for primitives.
+
+## Memory management
+
+### Arena allocator
+
+Ant uses an arena-based memory allocator for managing JavaScript objects and values. The allocator maintains a continuous block of memory that grows as needed:
+
+```c
+// From runtime.c - code arena allocation
+const char *code_arena_alloc(const char *code, size_t len);
+void *code_arena_bump(size_t size);
+```
+
+The arena allocator provides:
+
+- Fast allocation with simple pointer bumping
+- Efficient memory reuse
+- Mark-and-sweep garbage collection
+- String interning to reduce memory usage
+
+### Garbage collection
+
+Ant implements a conservative mark-and-sweep garbage collector that:
+
+1. Marks all reachable values starting from roots
+2. Sweeps unreachable values to reclaim memory
+3. Runs automatically when memory pressure is detected
+
+```javascript
+// GC is triggered automatically
+if (js->needs_gc) js_gc_maybe(js);
+```
+
+## Runtime initialization
+
+The runtime is initialized with process information and global objects:
+
+```c
+// From runtime.c
+struct ant_runtime *ant_runtime_init(
+  ant_t *js, 
+  int argc, 
+  char **argv, 
+  struct arg_file *ls_p
+) {
+  runtime = (struct ant_runtime){
+    .js = js,
+    .ant_obj = js_newobj(js),
+    .flags = 0, 
+    .argc = argc, 
+    .argv = argv,
+    .pid = (int)ant_getpid(),
+    .ls_fp = (ls_p && ls_p->count > 0) ? ls_p->filename[0] : NULL,
+  };
+
+  jsval_t global = js_glob(js);
+  js_set(js, global, "global", global);
+  js_set(js, global, "window", global);
+  js_set(js, global, "globalThis", global);
+  js_set(js, global, "Ant", runtime.ant_obj);
+
+  return &runtime;
+}
+```
+
+## Built-in modules
+
+Ant provides a comprehensive set of built-in modules that are initialized at startup:
+
+<CodeGroup>
+
+```c Core modules
+// From main.c - module initialization
+init_symbol_module();
+init_date_module();
+init_regex_module();
+init_collections_module();
+init_builtin_module();
+init_buffer_module();
+init_fs_module();
+init_atomics_module();
+init_crypto_module();
+init_fetch_module();
+init_console_module();
+init_json_module();
+init_server_module();
+init_timer_module();
+init_process_module();
+```
+
+```c Standard library modules
+// Node.js compatible modules
+ant_standard_library("util", util_library);
+ant_standard_library("net", net_library);
+ant_standard_library("dns", dns_library);
+ant_standard_library("buffer", buffer_library);
+ant_standard_library("path", path_library);
+ant_standard_library("fs", fs_library);
+ant_standard_library("crypto", crypto_library);
+ant_standard_library("events", events_library);
+```
+
+```c Ant-specific modules
+// Modules with ant: prefix
+ant_register_library(shell_library, "ant:shell", NULL);
+ant_register_library(ffi_library, "ant:ffi", NULL);
+ant_register_library(lmdb_library, "ant:lmdb", NULL);
+```
+
+</CodeGroup>
+
+## Stack management
+
+Ant carefully manages the call stack to prevent overflow:
+
+```c
+// From main.c - stack limits
+volatile char stack_base;
+js_setstackbase(js, (void *)&stack_base);
+
+struct rlimit rl;
+if (getrlimit(RLIMIT_STACK, &rl) == 0 && rl.rlim_cur != RLIM_INFINITY)
+  js_setstacklimit(js, (size_t)rl.rlim_cur * 3 / 4);
+else
+  js_setstacklimit(js, 512 * 1024);
+```
+
+## Execution modes
+
+Ant supports multiple execution modes:
+
+### Script execution
+
+```bash
+# Execute a JavaScript file
+ant script.js
+```
+
+### Module execution
+
+```bash
+# Execute an ES module
+ant module.mjs
+```
+
+### REPL mode
+
+```bash
+# Interactive REPL
+ant
+```
+
+### Eval mode
+
+```bash
+# Evaluate code directly
+ant -e "console.log('Hello')"
+ant -p "2 + 2"  # Print result
+```
+
+## Performance considerations
+
+### JIT compilation
+
+The Silver VM includes an optional JIT compiler that can optimize hot code paths. Enable JIT debugging with:
+
+```bash
+export ANT_DEBUG="dump/vm:jit"
+```
+
+### Memory optimization
+
+Ant uses several techniques to minimize memory usage:
+
+- **String interning**: Duplicate strings share the same memory
+- **Rope strings**: Large string concatenations use rope data structures
+- **Packed arrays**: Dense arrays are stored efficiently
+- **Property caching**: Property lookups are cached for fast access
+
+<Tip>
+Use `--stack-size=<kb>` to adjust the VM stack size for deeply recursive code.
+</Tip>
+
+## Error handling
+
+The runtime provides comprehensive error handling with stack traces:
+
+```c
+// From main.c - error handling
+if (print_uncaught_throw(js)) {
+  js_result = EXIT_FAILURE;
+  return;
+}
+```
+
+Errors include:
+- File location and line numbers
+- Stack traces for debugging
+- Type information for invalid operations
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Event loop" icon="arrows-rotate" href="/concepts/event-loop">
+    Learn about async execution and the event loop
+  </Card>
+  <Card title="Module system" icon="boxes-stacked" href="/concepts/modules">
+    Understand ESM and built-in modules
+  </Card>
+</CardGroup>

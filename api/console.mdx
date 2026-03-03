@@ -1,0 +1,199 @@
+---
+title: Console API
+description: Console logging and debugging utilities
+---
+
+The `console` object provides methods for logging messages and debugging information.
+
+## Methods
+
+### console.log()
+
+Prints output to stdout. Accepts multiple arguments of any type.
+
+```javascript
+console.log('Hello, World!');
+console.log('Number:', 42, 'Boolean:', true);
+console.log('Object:', { name: 'test', value: 123 });
+console.log('Array:', [1, 2, 3]);
+```
+
+### console.error()
+
+Prints error messages to stderr in red.
+
+```javascript
+console.error('This is an error');
+console.error('Error code:', 404);
+```
+
+### console.warn()
+
+Prints warning messages to stderr in yellow.
+
+```javascript
+console.warn('This is a warning');
+console.warn('Deprecation warning: feature will be removed');
+```
+
+### console.info()
+
+Prints informational messages to stdout in cyan.
+
+```javascript
+console.info('Server started');
+console.info('Connection established');
+```
+
+### console.debug()
+
+Prints debug messages to stdout in magenta.
+
+```javascript
+console.debug('Debug: variable value =', someVar);
+```
+
+### console.assert()
+
+Tests if an expression is truthy. If false, prints an assertion failure message.
+
+<ParamField path="condition" type="boolean" required>
+  The condition to test
+</ParamField>
+
+<ParamField path="...messages" type="any">
+  Optional messages to print if assertion fails
+</ParamField>
+
+```javascript
+const x = 5;
+console.assert(x > 0, 'x should be positive');
+console.assert(x < 0, 'x should be negative'); // Assertion failed: x should be negative
+```
+
+### console.trace()
+
+Prints a stack trace to stderr.
+
+```javascript
+function foo() {
+  function bar() {
+    console.trace('Stack trace from bar()');
+  }
+  bar();
+}
+
+foo();
+// Output:
+// Trace: Stack trace from bar()
+// at bar (file.js:3)
+// at foo (file.js:5)
+// at <anonymous> (file.js:8)
+```
+
+### console.clear()
+
+Clears the terminal screen (if supported).
+
+```javascript
+console.clear();
+```
+
+### console.time()
+
+Starts a timer with the given label.
+
+<ParamField path="label" type="string" default="default">
+  Label for the timer
+</ParamField>
+
+```javascript
+console.time('myTimer');
+// ... some code ...
+console.timeEnd('myTimer'); // myTimer: 123.456ms
+```
+
+### console.timeEnd()
+
+Stops a timer and prints the elapsed time.
+
+<ParamField path="label" type="string" default="default">
+  Label of the timer to stop
+</ParamField>
+
+```javascript
+console.time('operation');
+
+for (let i = 0; i < 1000000; i++) {
+  // Some expensive operation
+}
+
+console.timeEnd('operation'); // operation: 45.123ms
+```
+
+### console.inspect()
+
+Returns a detailed string representation of a value, useful for debugging complex objects.
+
+<ParamField path="value" type="any" required>
+  The value to inspect
+</ParamField>
+
+**Returns:** String representation of the value.
+
+```javascript
+const obj = {
+  name: 'test',
+  nested: { a: 1, b: 2 },
+  arr: [1, 2, 3]
+};
+
+const str = console.inspect(obj);
+console.log(str);
+```
+
+## Examples
+
+### Basic Logging
+
+```javascript
+console.log('Server started on port 8000');
+console.info('Database connected');
+console.warn('Approaching rate limit');
+console.error('Failed to connect to API');
+```
+
+### Performance Timing
+
+```javascript
+console.time('fetchData');
+const response = await fetch('https://api.example.com/data');
+const data = await response.json();
+console.timeEnd('fetchData'); // fetchData: 234.567ms
+```
+
+### Debugging with Assertions
+
+```javascript
+function divide(a, b) {
+  console.assert(b !== 0, 'Division by zero');
+  return a / b;
+}
+
+divide(10, 2);  // OK
+divide(10, 0);  // Assertion failed: Division by zero
+```
+
+### Stack Traces
+
+```javascript
+function processRequest(data) {
+  if (!data) {
+    console.trace('processRequest called with no data');
+    return;
+  }
+  // Process data...
+}
+
+processRequest(null);
+```

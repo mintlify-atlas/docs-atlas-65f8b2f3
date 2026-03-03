@@ -1,0 +1,486 @@
+---
+title: Module system
+description: Learn about Ant's ES modules, built-in modules, and module resolution
+---
+
+Ant implements a full ES module system with support for both ECMAScript modules (ESM) and CommonJS. The runtime includes built-in Node.js-compatible modules and Ant-specific modules with the `ant:` prefix.
+
+## ES modules (ESM)
+
+Ant fully supports modern ES module syntax:
+
+```javascript
+// Named exports
+export const greeting = 'Hello';
+export function sayHello(name) {
+  return `${greeting}, ${name}!`;
+}
+
+// Default export
+export default class MyClass {
+  constructor(value) {
+    this.value = value;
+  }
+}
+
+// Re-exports
+export { something } from './other-module.js';
+export * from './utils.js';
+```
+
+### Importing modules
+
+```javascript
+// Named imports
+import { greeting, sayHello } from './module.js';
+
+// Default import
+import MyClass from './module.js';
+
+// Namespace import
+import * as utils from './utils.js';
+
+// Side-effect import
+import './polyfills.js';
+
+// Dynamic import
+const module = await import('./dynamic.js');
+```
+
+## Module resolution
+
+Ant's module loader resolves modules using Node.js-compatible algorithm:
+
+```c
+// From esm/loader.c - resolution logic
+static char *esm_resolve_node_module(
+  const char *specifier, 
+  const char *base_path
+);
+```
+
+### Resolution order
+
+1. **Built-in modules**: `ant:` prefix and Node.js core modules
+2. **Relative paths**: `./`, `../`
+3. **Absolute paths**: `/path/to/module`
+4. **node_modules**: Package resolution
+5. **URL imports**: `https://` remote modules
+
+### File extensions
+
+Ant tries these extensions in order:
+
+```c
+// From esm/loader.c
+const char *module_resolve_extensions[] = {
+  ".js",
+  ".mjs",
+  ".cjs",
+  ".json",
+  ".ts",   // TypeScript (auto-stripped)
+  ".tsx",
+  NULL
+};
+```
+
+<Info>
+TypeScript files are automatically transpiled at runtime with type annotations stripped.
+</Info>
+
+## Built-in modules with `ant:` prefix
+
+Ant provides several built-in modules with the `ant:` prefix:
+
+### ant:shell
+
+Execute shell commands:
+
+```javascript
+import { $ } from 'ant:shell';
+
+// Execute command and get result
+const result = $`ls -la`;
+console.log(result.text());
+
+// Command with interpolation
+const dir = '/tmp';
+const output = $`ls ${dir}`;
+
+// Example from examples/demo/destr.js
+import { $ } from 'ant:shell';
+import parse from 'https://esm.sh/destr';
+
+const data = $`maid -g json-hydrated`.text();
+console.log(parse(data));
+```
+
+### ant:ffi
+
+Foreign Function Interface for calling native libraries:
+
+```javascript
+import { dlopen, suffix, FFIType } from 'ant:ffi';
+
+// Load native library
+const lib = dlopen(`./libmath.${suffix}`, {
+  add: {
+    args: [FFIType.i32, FFIType.i32],
+    returns: FFIType.i32
+  },
+  multiply: {
+    args: [FFIType.double, FFIType.double],
+    returns: FFIType.double
+  }
+});
+
+// Call native functions
+const sum = lib.symbols.add(5, 3);        // 8
+const product = lib.symbols.multiply(2.5, 4.0);  // 10.0
+```
+
+### ant:lmdb
+
+Lightning Memory-Mapped Database:
+
+```javascript
+import { open } from 'ant:lmdb';
+
+// Open database
+const db = open('./mydb', { create: true });
+
+// Store and retrieve data
+db.put('key', 'value');
+const value = db.get('key');
+
+// Transactions
+db.transaction(() => {
+  db.put('key1', 'value1');
+  db.put('key2', 'value2');
+});
+```
+
+### ant:os
+
+Operating system utilities:
+
+```javascript
+import { uptime, loadavg, constants } from 'ant:os';
+
+console.log('Uptime:', uptime());
+console.log('Load average:', loadavg());
+console.log('Signal constants:', constants.signals);
+```
+
+### ant:path
+
+Path manipulation utilities:
+
+```javascript
+import { join, resolve, dirname, basename } from 'ant:path';
+
+const fullPath = join('/usr', 'local', 'bin');  // '/usr/local/bin'
+const absolute = resolve('./relative/path');     // absolute path
+const dir = dirname('/path/to/file.js');        // '/path/to'
+const file = basename('/path/to/file.js');      // 'file.js'
+```
+
+## Node.js compatible modules
+
+Ant implements many Node.js core modules:
+
+### fs and fs/promises
+
+```javascript
+import { readFile, writeFile, mkdir } from 'fs/promises';
+
+// Read file
+const content = await readFile('file.txt', 'utf-8');
+
+// Write file
+await writeFile('output.txt', 'Hello, World!');
+
+// Create directory
+await mkdir('new-dir', { recursive: true });
+```
+
+### buffer
+
+```javascript
+import { Buffer } from 'buffer';
+
+// Create buffer
+const buf = Buffer.from('Hello');
+
+// Convert to string
+const str = buf.toString('utf-8');
+
+// Base64 encoding
+const base64 = buf.toString('base64');
+```
+
+### crypto
+
+```javascript
+import { randomBytes, createHash } from 'crypto';
+
+// Generate random bytes
+const random = randomBytes(32);
+
+// Hash data
+const hash = createHash('sha256')
+  .update('Hello, World!')
+  .digest('hex');
+```
+
+### events
+
+```javascript
+import { EventEmitter } from 'events';
+
+class MyEmitter extends EventEmitter {}
+
+const emitter = new MyEmitter();
+
+emitter.on('event', (data) => {
+  console.log('Event received:', data);
+});
+
+emitter.emit('event', { message: 'Hello' });
+```
+
+### util
+
+```javascript
+import { promisify, inspect } from 'util';
+
+// Promisify callback-based function
+const readFileAsync = promisify(fs.readFile);
+const content = await readFileAsync('file.txt', 'utf-8');
+
+// Inspect objects
+console.log(inspect({ a: 1, b: { c: 2 } }, { depth: null, colors: true }));
+```
+
+## Remote module imports
+
+Ant supports importing modules directly from URLs:
+
+```javascript
+// Import from CDN
+import parse from 'https://esm.sh/destr';
+
+// Use imported module
+const data = parse('{"key": "value"}');
+```
+
+Remote modules are:
+- Fetched over HTTPS
+- Cached for subsequent imports
+- Validated for security
+
+## CommonJS interop
+
+Ant supports CommonJS modules for compatibility:
+
+```javascript
+// CommonJS export
+module.exports = {
+  add: (a, b) => a + b,
+  subtract: (a, b) => a - b
+};
+
+// CommonJS require
+const math = require('./math.cjs');
+console.log(math.add(2, 3));
+```
+
+### ESM ↔ CJS
+
+You can import CommonJS from ESM:
+
+```javascript
+// Import CommonJS module in ESM
+import math from './math.cjs';
+// or
+import { add } from './math.cjs';
+```
+
+## Module caching
+
+Modules are cached after first load:
+
+```c
+// From esm/loader.c
+typedef struct esm_module {
+  char *path;
+  char *resolved_path;
+  jsval_t namespace_obj;
+  jsval_t default_export;
+  bool is_loaded;
+  bool is_loading;
+  // ...
+} esm_module_t;
+
+static esm_module_cache_t global_module_cache = {NULL, 0};
+```
+
+Cache behavior:
+- First import loads and executes the module
+- Subsequent imports return cached exports
+- Dynamic `import()` can bypass cache
+- Module code runs only once
+
+## import.meta
+
+Access module metadata:
+
+```javascript
+// Current module URL
+console.log(import.meta.url);
+
+// Is this the main module?
+if (import.meta.main) {
+  console.log('Running as main module');
+}
+
+// Module directory (Ant-specific)
+console.log(__dirname);
+console.log(__filename);
+```
+
+## Dynamic imports
+
+Load modules dynamically at runtime:
+
+```javascript
+// Conditional import
+if (condition) {
+  const module = await import('./feature.js');
+  module.doSomething();
+}
+
+// Dynamic path
+const moduleName = 'utils';
+const { helper } = await import(`./${moduleName}.js`);
+
+// Lazy loading
+button.addEventListener('click', async () => {
+  const { heavyFunction } = await import('./heavy.js');
+  heavyFunction();
+});
+```
+
+## Module initialization
+
+Modules are initialized in dependency order:
+
+```c
+// From esm/loader.c - module evaluation
+jsval_t js_esm_eval_module_source(
+  ant_t *js,
+  const char *path,
+  const char *source,
+  size_t length,
+  jsval_t namespace_obj
+);
+```
+
+Initialization order:
+1. Parse module and discover dependencies
+2. Load and parse dependencies recursively
+3. Execute modules in dependency order
+4. Cache exports
+
+## TypeScript support
+
+Ant automatically strips TypeScript type annotations:
+
+```typescript
+// math.ts - TypeScript with types
+export function add(a: number, b: number): number {
+  return a + b;
+}
+
+export interface Point {
+  x: number;
+  y: number;
+}
+
+// Types are stripped at runtime
+// No compilation step needed!
+```
+
+<Tip>
+Ant strips type annotations but doesn't type-check. Use `tsc --noEmit` for type checking during development.
+</Tip>
+
+## Package.json support
+
+Ant respects package.json fields:
+
+```json
+{
+  "type": "module",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./utils": "./utils/index.js"
+  }
+}
+```
+
+## Best practices
+
+<AccordionGroup>
+  <Accordion title="Use ES modules by default">
+    ES modules are the modern standard and provide better static analysis:
+    
+    ```javascript
+    // ✅ Good: ES modules
+    import { func } from './module.js';
+    export { func };
+    
+    // ❌ Avoid: CommonJS (unless needed for compatibility)
+    const { func } = require('./module');
+    module.exports = { func };
+    ```
+  </Accordion>
+
+  <Accordion title="Include file extensions">
+    Always include `.js` or `.mjs` extensions in import paths:
+    
+    ```javascript
+    // ✅ Good: includes extension
+    import { func } from './module.js';
+    
+    // ❌ Avoid: missing extension (works but slower)
+    import { func } from './module';
+    ```
+  </Accordion>
+
+  <Accordion title="Organize with barrel exports">
+    Use index.js to aggregate exports:
+    
+    ```javascript
+    // utils/index.js
+    export { add, subtract } from './math.js';
+    export { format } from './string.js';
+    export { fetch } from './http.js';
+    
+    // Usage
+    import { add, format, fetch } from './utils/index.js';
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Runtime architecture" icon="microchip" href="/concepts/runtime">
+    Learn about the runtime internals
+  </Card>
+  <Card title="Async/await" icon="clock" href="/concepts/async-await">
+    Master asynchronous programming
+  </Card>
+</CardGroup>

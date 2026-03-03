@@ -1,0 +1,100 @@
+---
+title: ant <file>
+description: Run JavaScript and TypeScript files directly with Ant
+---
+
+Execute JavaScript or TypeScript files directly with Ant's runtime.
+
+## Usage
+
+```bash
+ant <file> [options] [-- script-args]
+```
+
+## Parameters
+
+<ParamField path="file" type="string" required>
+  Path to the JavaScript or TypeScript file to execute. Can be a local file path or URL.
+</ParamField>
+
+<ParamField path="script-args" type="string[]">
+  Arguments to pass to the script. Must be preceded by `--`.
+</ParamField>
+
+## Options
+
+<ParamField query="-w, --watch" type="boolean">
+  Watch mode - restart the process when the entry file changes.
+</ParamField>
+
+<ParamField query="--no-clear-screen" type="boolean">
+  Keep output when restarting in watch mode (requires `--watch`).
+</ParamField>
+
+<ParamField query="--localstorage-file" type="string">
+  File path for localStorage persistence.
+</ParamField>
+
+<ParamField query="--verbose" type="boolean">
+  Enable verbose output.
+</ParamField>
+
+<ParamField query="--no-color" type="boolean">
+  Disable colored output.
+</ParamField>
+
+<ParamField query="--stack-size" type="number">
+  Set stack size in KB (e.g., `--stack-size=1024`).
+</ParamField>
+
+## Examples
+
+### Run a JavaScript file
+
+```bash
+ant index.js
+```
+
+### Run a TypeScript file
+
+```bash
+ant app.ts
+```
+
+### Run with arguments
+
+```bash
+ant script.js -- --port 3000 --host localhost
+```
+
+### Run in watch mode
+
+```bash
+ant --watch server.js
+```
+
+### Run from URL
+
+```bash
+ant https://example.com/script.js
+```
+
+## Terminal Output
+
+```bash
+$ ant server.js
+Server listening on port 3000
+```
+
+## Features
+
+- **Native TypeScript Support**: Run `.ts` files without compilation
+- **URL Support**: Execute scripts from remote URLs
+- **Watch Mode**: Auto-restart on file changes
+- **Module Resolution**: Supports ES modules and CommonJS
+- **Script Arguments**: Pass arguments to your scripts via `--`
+
+## Related
+
+- [REPL](/cli/repl) - Interactive JavaScript shell
+- [exec](/cli/exec) - Run commands from node_modules/.bin

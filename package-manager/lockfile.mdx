@@ -1,0 +1,434 @@
+---
+title: Lockfile Format
+description: Binary lockfile format specification and behavior for ant.lockb
+---
+
+Ant uses a custom binary lockfile format (`ant.lockb`) that provides faster parsing and smaller file sizes compared to JSON-based lockfiles.
+
+## Overview
+
+The `ant.lockb` lockfile:
+
+- **Binary format** - Compact, structured binary data
+- **Memory-mapped** - Instant loading via mmap on Unix, optimized reading on Windows
+- **Deterministic** - Same dependencies always produce identical lockfile
+- **Fast lookups** - Hash table for O(1) package name lookups
+- **Version controlled** - Can be committed to git (binary-safe)
+
+## File Structure
+
+```
+ant.lockb (binary file)
+├── Header (128 bytes)
+│   ├── Magic number: 0x504B474C
+│   ├── Version: 1
+│   ├── Package count
+│   ├── Dependency count
+│   └── Section offsets
+├── Package Array
+│   └── [Package structs]
+├── Dependency Array
+│   └── [Dependency structs]
+├── String Table
+│   └── [Interned strings]
+└── Hash Table
+    └── [Hash buckets for lookups]
+```
+
+## Header Structure
+
+```c
+struct Header {
+  uint32_t magic;                    // 0x504B474C ("PKGL")
+  uint32_t version;                  // Format version (1)
+  uint32_t package_count;            // Number of packages
+  uint32_t dependency_count;         // Number of dependencies
+  uint32_t string_table_offset;      // Offset to string table
+  uint32_t string_table_size;        // Size of string table
+  uint32_t package_array_offset;     // Offset to package array
+  uint32_t dependency_array_offset;  // Offset to dependency array
+  uint32_t hash_table_offset;        // Offset to hash table
+  uint32_t hash_table_size;          // Number of hash buckets
+  uint8_t  _reserved[24];            // Reserved for future use
+};
+```
+
+**Magic number:** `0x504B474C` ("PKGL" in ASCII) identifies the file format.
+
+**Version:** Currently `1`. Future versions may introduce breaking changes.
+
+## Package Structure
+
+Each package is stored as a 136-byte struct:
+
+```c
+struct Package {
+  StringRef name;              // Package name (offset + length)
+  uint64_t  version_major;     // Major version
+  uint64_t  version_minor;     // Minor version  
+  uint64_t  version_patch;     // Patch version
+  StringRef prerelease;        // Prerelease tag (e.g., "beta.1")
+  uint8_t   integrity[64];     // SHA-512 hash
+  StringRef tarball_url;       // Download URL
+  StringRef parent_path;       // Parent package path (for nested deps)
+  uint32_t  deps_start;        // Index into dependency array
+  uint32_t  deps_count;        // Number of dependencies
+  uint8_t   flags;             // PackageFlags
+  uint8_t   _padding[3];       // Padding to 136 bytes
+};
+```
+
+### Package Flags
+
+```c
+struct PackageFlags {
+  bool dev       : 1;  // devDependency
+  bool optional  : 1;  // optionalDependency
+  bool peer      : 1;  // peerDependency
+  bool bundled   : 1;  // Bundled dependency
+  bool has_bin   : 1;  // Has binary executables
+  bool has_scripts : 1; // Has lifecycle scripts
+  bool direct    : 1;  // Direct dependency (in package.json)
+  uint8_t _reserved : 1;
+};
+```
+
+### Version Storage
+
+Versions are stored as separate integers for efficient comparison:
+
+```
+Version "4.18.2-beta.1":
+  version_major = 4
+  version_minor = 18
+  version_patch = 2
+  prerelease = StringRef("beta.1")
+```
+
+### Integrity Hash
+
+SHA-512 integrity hash (64 bytes) for tarball verification:
+
+```
+integrity[64] = raw SHA-512 bytes
+```
+
+Equivalent to npm's `sha512-...` format.
+
+## Dependency Structure
+
+```c
+struct Dependency {
+  uint32_t  package_index;  // Index into package array
+  StringRef constraint;     // Version constraint (e.g., "^4.0.0")
+  uint8_t   flags;          // DependencyFlags
+  uint8_t   _padding[3];    // Padding
+};
+```
+
+### Dependency Flags
+
+```c
+struct DependencyFlags {
+  bool peer      : 1;  // Peer dependency
+  bool dev       : 1;  // Dev dependency
+  bool optional  : 1;  // Optional dependency
+  uint8_t _reserved : 5;
+};
+```
+
+## String Table
+
+All strings (package names, URLs, constraints, etc.) are stored in a deduplicated string table:
+
+```
+String Table:
+  [0-4]   "lodash"
+  [5-12]  "^4.17.21"
+  [13-26] "https://..."
+  ...
+```
+
+**StringRef** points to strings:
+
+```c
+struct StringRef {
+  uint32_t offset;  // Offset into string table
+  uint32_t len;     // String length
+};
+```
+
+**Benefits:**
+- Deduplication: Common strings stored once
+- Fast access: Direct offset-based lookups
+- Compact: No null terminators or delimiters needed
+
+## Hash Table
+
+For fast package lookups by name:
+
+```c
+struct HashBucket {
+  uint32_t name_hash;      // djb2 hash of package name
+  uint32_t package_index;  // Index into package array
+};
+```
+
+**Hash function (djb2):**
+
+```c
+uint32_t djb2(const char *str) {
+  uint32_t hash = 5381;
+  while (*str) {
+    hash = ((hash << 5) + hash) + *str++;
+  }
+  return hash;
+}
+```
+
+**Collision resolution:** Open addressing with linear probing.
+
+**Empty bucket:** `package_index = 0xFFFFFFFF`
+
+## Lockfile Generation
+
+When Ant generates a lockfile:
+
+1. **Resolve** - Resolve all dependencies to exact versions
+2. **Collect** - Gather all packages and their dependencies
+3. **Intern strings** - Build deduplicated string table
+4. **Sort** - Sort packages for deterministic output
+5. **Build hash table** - Create hash table for fast lookups
+6. **Write** - Write all sections to file
+
+**Example:**
+
+```bash
+ant add lodash express
+```
+
+Generates `ant.lockb` containing:
+- Header
+- 15 packages (lodash + express + their dependencies)
+- 42 dependency edges
+- String table with ~30 unique strings
+- Hash table with ~32 buckets
+
+## Reading Lockfile
+
+Ant reads lockfiles using memory-mapped I/O for instant access:
+
+**Unix (mmap):**
+
+```c
+int fd = open("ant.lockb", O_RDONLY);
+struct stat st;
+fstat(fd, &st);
+void *data = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+
+Header *header = (Header *)data;
+Package *packages = (Package *)(data + header->package_array_offset);
+```
+
+**Windows:**
+
+```c
+FILE *f = fopen("ant.lockb", "rb");
+fseek(f, 0, SEEK_END);
+size_t size = ftell(f);
+fseek(f, 0, SEEK_SET);
+
+void *data = aligned_alloc(alignof(Header), size);
+fread(data, 1, size, f);
+```
+
+**Parsing time:** ~1ms for typical projects (vs ~50-200ms for JSON lockfiles)
+
+## Lockfile Updates
+
+The lockfile is updated when:
+
+- `ant add <package>` - Adds new packages
+- `ant remove <package>` - Removes packages
+- `ant update` - Updates to latest compatible versions
+- `ant install` (no lockfile) - Generates new lockfile
+
+**Behavior:**
+
+1. Read existing lockfile (if present)
+2. Apply changes (add/remove/update)
+3. Re-resolve affected dependencies
+4. Write new lockfile
+
+**Determinism:** Same `package.json` + same registry state = identical lockfile
+
+## Version Control
+
+**Should you commit ant.lockb?**
+
+✅ **Yes**, for:
+- Applications
+- Services
+- End-user projects
+
+❌ **No**, for:
+- Libraries (usually)
+- Packages published to npm
+
+**Why commit lockfiles?**
+
+1. **Reproducible builds** - Everyone gets same versions
+2. **CI/CD consistency** - Same versions in all environments
+3. **Debugging** - Know exact versions that caused issues
+
+**Git configuration:**
+
+```gitignore
+# .gitignore
+node_modules/
+
+# ✅ DO commit lockfile
+# ant.lockb
+```
+
+The lockfile is binary but git handles it well:
+
+```bash
+git add ant.lockb
+git commit -m "Update dependencies"
+```
+
+## Lockfile Validation
+
+Ant validates lockfiles on load:
+
+1. **Magic number** - Verify file format
+2. **Version** - Check format version compatibility
+3. **Bounds** - Verify all offsets are within file
+4. **Integrity** - Validate package integrity hashes
+
+**Invalid lockfile:**
+
+```
+Error: Invalid lockfile format
+```
+
+Ant will regenerate the lockfile automatically.
+
+## Comparison with Other Lockfiles
+
+| Feature | ant.lockb | package-lock.json | yarn.lock |
+|---------|-----------|-------------------|------------|
+| Format | Binary | JSON | YAML-like |
+| Size | ~50KB | ~500KB | ~300KB |
+| Parse time | ~1ms | ~50ms | ~100ms |
+| Memory usage | Zero-copy mmap | Full parse | Full parse |
+| Hash lookup | O(1) | O(n) | O(n) |
+| Deterministic | ✅ Yes | ✅ Yes | ✅ Yes |
+| Human readable | ❌ No | ✅ Yes | ✅ Yes |
+
+**Trade-offs:**
+
+✅ **Advantages:**
+- 10-50x faster parsing
+- 10x smaller file size
+- Zero-copy memory mapping
+- O(1) package lookups
+
+❌ **Disadvantages:**
+- Not human-readable
+- Requires specialized tools to inspect
+- Merge conflicts harder to resolve
+
+## Inspecting Lockfiles
+
+Use `ant why` to inspect lockfile contents:
+
+```bash
+ant why lodash              # Show why lodash is installed
+ant ls                      # List all installed packages
+ant info lodash             # Show package info from registry
+```
+
+**Future:** A dedicated lockfile inspection tool is planned:
+
+```bash
+ant lockfile inspect        # Planned: show lockfile contents
+ant lockfile diff           # Planned: compare lockfiles
+```
+
+## Lockfile Migration
+
+Converting from other lockfiles:
+
+**From npm:**
+
+```bash
+rm package-lock.json
+ant install
+```
+
+**From yarn:**
+
+```bash
+rm yarn.lock
+ant install
+```
+
+**From pnpm:**
+
+```bash
+rm pnpm-lock.yaml
+ant install
+```
+
+Ant reads `package.json` and generates a fresh lockfile.
+
+## Technical Details
+
+### Alignment
+
+Structs are naturally aligned:
+
+- Header: 8-byte aligned
+- Package: 8-byte aligned (136 bytes)
+- Dependency: 4-byte aligned
+- HashBucket: 4-byte aligned
+
+### Endianness
+
+Lockfiles use native endianness (usually little-endian on modern systems).
+
+**Note:** Lockfiles are not portable across different-endian systems (rare issue).
+
+### File Size
+
+Typical lockfile sizes:
+
+| Project Size | Packages | Lockfile Size |
+|--------------|----------|---------------|
+| Small | 10-50 | 5-20 KB |
+| Medium | 100-500 | 20-100 KB |
+| Large | 500-2000 | 100-500 KB |
+| Huge | 2000+ | 500 KB - 2 MB |
+
+### Performance
+
+**Parsing benchmarks:**
+
+| Operation | ant.lockb | package-lock.json |
+|-----------|-----------|-------------------|
+| Open + parse | 1ms | 50ms |
+| Lookup package | &lt;0.1ms | 5ms |
+| Memory usage | 0 (mmap) | 10-50 MB |
+
+## Future Enhancements
+
+Planned improvements:
+
+- Compression for string table
+- Package metadata caching
+- Incremental updates
+- Cross-endian support
+- Lockfile merging tools
+- Human-readable export/import

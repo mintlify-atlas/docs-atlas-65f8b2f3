@@ -1,0 +1,114 @@
+---
+title: Build Options
+description: Meson build options and TLS library selection for Ant
+---
+
+## Meson Build Options
+
+Configure options are set via `meson setup` or `meson configure`.
+
+### Ant-Specific Options
+
+| Option              | Type    | Default   | Description                                |
+| ------------------- | ------- | --------- | ------------------------------------------ |
+| `static_link`       | boolean | `false`   | Statically link the final binary           |
+| `build_timestamp`   | string  | (auto)    | Build timestamp (defaults to current time) |
+| `tls_library`       | combo   | `openssl` | TLS backend: `openssl` or `mbedtls`        |
+| `deps_prefix_cmake` | string  | (empty)   | Prefix path for cmake dependency lookup    |
+
+### Standard Meson Options
+
+Standard Meson built-in options used by Ant:
+
+| Option          | Default   | Description                       |
+| --------------- | --------- | --------------------------------- |
+| `buildtype`     | `release` | Build type (release, debug, etc.) |
+| `optimization`  | `3`       | Optimization level (0-3)          |
+| `c_std`         | `gnu23`   | C language standard               |
+| `b_lto`         | `true`    | Link-time optimization            |
+| `b_lto_threads` | `8`       | LTO parallelism                   |
+| `strip`         | `true`    | Strip debug symbols from binary   |
+| `b_sanitize`    | `none`    | Sanitizer (e.g. `address`)        |
+
+## Example Usage
+
+To build with mbedTLS and static linking:
+
+```bash
+meson setup build -Dtls_library=mbedtls -Dstatic_link=true --prefer-static
+```
+
+To build with debug symbols and no optimization:
+
+```bash
+meson setup build --buildtype=debug -Doptimization=0 -Db_lto=false -Dstrip=false
+```
+
+## TLS Library Selection
+
+Ant supports two TLS backends:
+
+- **OpenSSL** (default): Widely available, used on all platforms by default.
+- **mbedTLS**: Lighter alternative, useful for embedded or constrained environments. Currently only tested on macOS CI.
+
+### Building with OpenSSL
+
+OpenSSL is the default TLS backend:
+
+```bash
+meson setup build
+```
+
+Or explicitly specify:
+
+```bash
+meson setup build -Dtls_library=openssl
+```
+
+### Building with mbedTLS
+
+To build with mbedTLS:
+
+```bash
+meson setup build -Dtls_library=mbedtls
+```
+
+<Note>
+  When using mbedTLS, the target triple in the version string will include `-mbedtls` as a suffix.
+</Note>
+
+## Common Build Configurations
+
+### Static Build
+
+For a fully static build (useful for Alpine/musl):
+
+```bash
+meson setup build -Dstatic_link=true --prefer-static
+```
+
+### Debug Build
+
+For debugging with symbols:
+
+```bash
+meson setup build --wipe --buildtype=debug \
+  -Doptimization=0 -Db_lto=false -Dstrip=false -Db_lundef=false -Dunity=off
+```
+
+### ASan Build
+
+For memory debugging with AddressSanitizer:
+
+```bash
+meson setup build --wipe \
+  -Db_sanitize=address -Doptimization=0 -Db_lto=false -Dstrip=false -Db_lundef=false
+```
+
+### Fast Iteration Build
+
+For fast rebuilds during development:
+
+```bash
+meson setup build -Db_lto=false -Doptimization=2
+```

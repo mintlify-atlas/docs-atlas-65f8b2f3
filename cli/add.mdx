@@ -1,0 +1,153 @@
+---
+title: ant add
+description: Add packages to project dependencies
+---
+
+Add one or more packages to your project's dependencies.
+
+## Usage
+
+```bash
+ant add <package[@version]>... [options]
+ant a <package[@version]>... [options]
+```
+
+## Parameters
+
+<ParamField path="package" type="string" required>
+  Package specification to add.
+  
+  Formats:
+  - `package-name` - Latest version
+  - `package-name@1.2.3` - Specific version
+  - `package-name@^1.0.0` - Version range
+  - `package-name@next` - Dist tag
+  - `@scope/package-name` - Scoped package
+</ParamField>
+
+## Options
+
+<ParamField query="-g, --global" type="boolean">
+  Install globally to `~/.ant/pkg/global`.
+</ParamField>
+
+<ParamField query="-D, --save-dev" type="boolean">
+  Add as devDependency instead of dependency.
+</ParamField>
+
+<ParamField query="--verbose" type="boolean">
+  Enable verbose output.
+</ParamField>
+
+<ParamField query="-h, --help" type="boolean">
+  Display help information.
+</ParamField>
+
+## Examples
+
+### Add a package
+
+```bash
+ant add express
+```
+
+**Output:**
+```
+ant add v1.0.0 (abc123)
+
+installed express@4.18.2 with binaries:
+ - express
+
+52 packages installed [892ms] done
+```
+
+### Add multiple packages
+
+```bash
+ant add react react-dom
+```
+
+### Add specific version
+
+```bash
+ant add lodash@4.17.20
+```
+
+### Add with version range
+
+```bash
+ant add express@^4.0.0
+```
+
+### Add dev dependencies
+
+```bash
+ant add -D typescript @types/node jest
+```
+
+**Output:**
+```
+ant add -D v1.0.0 (abc123)
+
+installed typescript@5.3.3
+installed @types/node@20.10.5
+installed jest@29.7.0 with binaries:
+ - jest
+
+284 packages installed [2.1s]
+```
+
+### Add from dist tag
+
+```bash
+ant add react@next
+```
+
+### Global installation
+
+```bash
+ant add -g typescript
+```
+
+**Output:**
+```
+ant add -g v1.0.0 (abc123)
+
+installed globally typescript
+  (binaries linked to ~/.ant/bin)
+
+[156ms] done
+```
+
+## Version Resolution
+
+When no version is specified, Ant installs the latest stable version:
+
+```bash
+ant add lodash
+# Installs latest: lodash@4.17.21
+```
+
+## Update Hints
+
+If a newer version is available, Ant shows a hint:
+
+```
++ express@4.18.2 (v4.18.3 available)
+```
+
+## Binary Linking
+
+Packages with binaries are automatically linked to `node_modules/.bin` (or `~/.ant/bin` for global installs):
+
+```
+installed typescript@5.3.3 with binaries:
+ - tsc
+ - tsserver
+```
+
+## Related
+
+- [ant install](/cli/install) - Install dependencies
+- [ant remove](/cli/remove) - Remove packages
+- [ant update](/cli/update) - Update dependencies

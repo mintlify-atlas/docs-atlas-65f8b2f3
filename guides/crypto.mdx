@@ -1,0 +1,310 @@
+---
+title: Cryptographic Operations
+description: Generate random values and UUIDs with ant:crypto
+---
+
+## Overview
+
+The `ant:crypto` module provides cryptographic operations powered by libsodium. It includes secure random number generation, UUID creation, and cryptographically strong randomness.
+
+## Importing
+
+```javascript
+import { 
+  random, 
+  randomBytes, 
+  randomUUID, 
+  randomUUIDv7,
+  getRandomValues 
+} from 'ant:crypto';
+```
+
+## Random Number Generation
+
+### Random Integer
+
+Generate a random 32-bit unsigned integer:
+
+```javascript
+const value = random();
+console.log(value); // 0 to 4294967295
+```
+
+### Random Bytes
+
+Generate an array of random bytes:
+
+```javascript
+// Generate 16 random bytes
+const bytes = randomBytes(16);
+console.log(bytes.length); // 16
+
+// Access individual bytes
+for (let i = 0; i < bytes.length; i++) {
+  console.log(bytes[i]); // 0-255
+}
+```
+
+### Random Buffer
+
+Fill a TypedArray with random values:
+
+```javascript
+// Fill Uint8Array
+const buffer = new Uint8Array(32);
+getRandomValues(buffer);
+
+// Works with any TypedArray
+const uint32 = new Uint32Array(8);
+getRandomValues(uint32);
+
+// Can fill part of array
+const large = new Uint8Array(1000);
+const view = large.subarray(100, 200);
+getRandomValues(view);
+```
+
+## UUID Generation
+
+### Random UUID (v4)
+
+Generate a random UUID v4:
+
+```javascript
+const uuid = randomUUID();
+console.log(uuid); // '550e8400-e29b-41d4-a716-446655440000'
+
+// Use in database keys
+const id = randomUUID();
+const user = {
+  id,
+  name: 'Alice',
+  created: Date.now()
+};
+```
+
+### UUID v7 (Time-Ordered)
+
+Generate a time-ordered UUID v7:
+
+```javascript
+const uuid = randomUUIDv7();
+console.log(uuid); // '017f22e2-79b0-7cc3-98c4-dc0c0c07398f'
+
+// UUIDv7 contains timestamp - sortable!
+const ids = [
+  randomUUIDv7(),
+  randomUUIDv7(),
+  randomUUIDv7()
+];
+// ids are naturally sorted by creation time
+```
+
+### UUID v7 Benefits
+
+- Time-ordered (lexicographically sortable)
+- Better database index performance
+- Includes creation timestamp
+- Still globally unique
+
+## Practical Examples
+
+### Session Tokens
+
+```javascript
+import { randomBytes } from 'ant:crypto';
+
+function generateSessionToken() {
+  const bytes = randomBytes(32);
+  return Array.from(bytes)
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+const token = generateSessionToken();
+console.log(token); // 64-character hex string
+```
+
+### Random Passwords
+
+```javascript
+function generatePassword(length = 16) {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+  const bytes = randomBytes(length);
+  let password = '';
+  
+  for (let i = 0; i < length; i++) {
+    password += chars[bytes[i] % chars.length];
+  }
+  
+  return password;
+}
+
+const pwd = generatePassword(20);
+console.log(pwd);
+```
+
+### Cryptographic Nonces
+
+```javascript
+function generateNonce() {
+  return randomBytes(24);
+}
+
+const nonce = generateNonce();
+// Use with encryption operations
+```
+
+### API Keys
+
+```javascript
+function generateAPIKey() {
+  const prefix = 'ak'; // API key prefix
+  const bytes = randomBytes(24);
+  const key = Array.from(bytes)
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+  return `${prefix}_${key}`;
+}
+
+const apiKey = generateAPIKey();
+console.log(apiKey); // 'ak_7f3b9c1d...'
+```
+
+### Random Selection
+
+```javascript
+function randomChoice(array) {
+  const index = random() % array.length;
+  return array[index];
+}
+
+const options = ['red', 'green', 'blue', 'yellow'];
+const choice = randomChoice(options);
+console.log(choice);
+```
+
+### Shuffling Arrays
+
+```javascript
+function shuffle(array) {
+  const result = [...array];
+  const bytes = randomBytes(result.length);
+  
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = bytes[i] % (i + 1);
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  
+  return result;
+}
+
+const deck = ['A', 'K', 'Q', 'J', '10', '9', '8', '7'];
+const shuffled = shuffle(deck);
+console.log(shuffled);
+```
+
+### Random Delays
+
+```javascript
+async function randomDelay(minMs, maxMs) {
+  const range = maxMs - minMs;
+  const delay = minMs + (random() % range);
+  await new Promise(resolve => setTimeout(resolve, delay));
+}
+
+// Random delay between 1-5 seconds
+await randomDelay(1000, 5000);
+console.log('Done');
+```
+
+### Database IDs
+
+```javascript
+class Database {
+  createUser(name) {
+    const user = {
+      id: randomUUIDv7(), // Time-ordered for better indexing
+      name,
+      created: Date.now()
+    };
+    // Save to database...
+    return user;
+  }
+  
+  createSession(userId) {
+    return {
+      id: randomUUID(),
+      userId,
+      token: this.generateToken(),
+      expires: Date.now() + 3600000
+    };
+  }
+  
+  generateToken() {
+    const bytes = randomBytes(32);
+    return Array.from(bytes)
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+  }
+}
+```
+
+## Web Crypto Compatibility
+
+The module follows Web Crypto API conventions:
+
+```javascript
+// Standard Web Crypto API
+const buffer = new Uint8Array(16);
+crypto.getRandomValues(buffer);
+
+const uuid = crypto.randomUUID();
+```
+
+## Security Considerations
+
+1. **Use randomBytes for secrets** - Never use Math.random() for security
+2. **Sufficient entropy** - Use at least 16 bytes for tokens
+3. **Token encoding** - Hex or base64 for text representation
+4. **UUID v7 for databases** - Better performance than v4
+5. **Nonce uniqueness** - Never reuse nonces in encryption
+
+## Performance Tips
+
+```javascript
+// Generate once, use multiple times
+const randomData = randomBytes(1000);
+
+// Avoid in tight loops
+for (let i = 0; i < 1000; i++) {
+  const value = randomData[i];
+  // Use value...
+}
+
+// Buffer reuse
+const buffer = new Uint8Array(32);
+function getRandomToken() {
+  getRandomValues(buffer);
+  return Array.from(buffer)
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+```
+
+## Limitations
+
+- Maximum byte array size: 65536 bytes
+- TypedArray byte length must not exceed 65536
+- Powered by libsodium - very secure
+
+## Best Practices
+
+1. Use `randomUUIDv7()` for database primary keys
+2. Use `randomUUID()` for request IDs and correlation
+3. Use `randomBytes()` for tokens and secrets
+4. Use `getRandomValues()` for filling buffers
+5. Never use for cryptographic key derivation (use proper KDF)
+6. Store random values securely
+7. Don't log or expose random tokens
+8. Use sufficient length (32+ bytes for high security)

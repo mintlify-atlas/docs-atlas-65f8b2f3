@@ -1,0 +1,257 @@
+---
+title: Ant Global Object
+description: Global Ant object providing runtime information and utilities
+---
+
+The `Ant` global object provides access to runtime information, system utilities, and core functionality of the Ant JavaScript runtime.
+
+## Properties
+
+### Ant.version
+
+Returns the version of the Ant runtime as a string.
+
+```javascript
+console.log(Ant.version); // "0.1.0"
+```
+
+### Ant.target
+
+Returns the build target platform as a string.
+
+```javascript
+console.log(Ant.target); // e.g., "x86_64-linux-gnu"
+```
+
+### Ant.host
+
+Returns the host operating system. Possible values:
+
+- `"darwin"` - macOS
+- `"linux"` - Linux
+- `"windows"` - Windows
+- `"freebsd"` - FreeBSD
+- `"openbsd"` - OpenBSD
+- `"netbsd"` - NetBSD
+- Other Unix-like systems
+
+```javascript
+console.log(Ant.host); // "linux"
+```
+
+### Ant.revision
+
+Returns the Git revision hash of the build.
+
+```javascript
+console.log(Ant.revision); // "a1b2c3d"
+```
+
+### Ant.buildDate
+
+Returns the build date as a string.
+
+```javascript
+console.log(Ant.buildDate); // "2024-03-15"
+```
+
+## Methods
+
+### Ant.serve()
+
+Starts an HTTP server.
+
+<ParamField path="port" type="number" required>
+  The port number to listen on
+</ParamField>
+
+<ParamField path="handler" type="function">
+  Optional request handler function that receives request and response objects
+</ParamField>
+
+```javascript
+Ant.serve(8000, (req, res) => {
+  res.status = 200;
+  res.body = 'Hello, World!';
+});
+
+console.log('Server running on http://localhost:8000');
+```
+
+### Ant.stats()
+
+Returns runtime memory and performance statistics.
+
+**Returns:** Object with the following properties:
+
+<ResponseField name="arenaUsed" type="number">
+  Bytes of arena memory currently in use
+</ResponseField>
+
+<ResponseField name="arenaSize" type="number">
+  Total size of the arena in bytes
+</ResponseField>
+
+<ResponseField name="external" type="object">
+  External memory allocations
+  
+  <ResponseField name="buffers" type="number">
+    Memory used by Buffer objects
+  </ResponseField>
+  
+  <ResponseField name="code" type="number">
+    Memory used by compiled code
+  </ResponseField>
+  
+  <ResponseField name="collections" type="number">
+    Memory used by Map and Set collections
+  </ResponseField>
+  
+  <ResponseField name="total" type="number">
+    Total external memory
+  </ResponseField>
+</ResponseField>
+
+<ResponseField name="intern" type="object">
+  String interning statistics
+  
+  <ResponseField name="count" type="number">
+    Number of interned strings
+  </ResponseField>
+  
+  <ResponseField name="bytes" type="number">
+    Bytes used by interned strings
+  </ResponseField>
+</ResponseField>
+
+<ResponseField name="vm" type="object">
+  VM stack statistics
+  
+  <ResponseField name="stackSize" type="number">
+    Total VM stack size
+  </ResponseField>
+  
+  <ResponseField name="stackUsed" type="number">
+    VM stack space currently used
+  </ResponseField>
+  
+  <ResponseField name="maxFrames" type="number">
+    Maximum call frames
+  </ResponseField>
+  
+  <ResponseField name="framesUsed" type="number">
+    Current number of frames
+  </ResponseField>
+</ResponseField>
+
+<ResponseField name="cstack" type="number">
+  C stack usage in bytes
+</ResponseField>
+
+<ResponseField name="rss" type="number">
+  Resident set size (RAM usage) in bytes
+</ResponseField>
+
+```javascript
+const stats = Ant.stats();
+console.log(`Arena used: ${stats.arenaUsed} bytes`);
+console.log(`RSS: ${stats.rss} bytes`);
+console.log(`VM stack: ${stats.vm.stackUsed}/${stats.vm.stackSize}`);
+```
+
+### Ant.sleep()
+
+Blocks execution for the specified number of seconds.
+
+<ParamField path="seconds" type="number" required>
+  Number of seconds to sleep
+</ParamField>
+
+```javascript
+console.log('Starting...');
+Ant.sleep(2);
+console.log('2 seconds later');
+```
+
+### Ant.msleep()
+
+Blocks execution for the specified number of milliseconds.
+
+<ParamField path="milliseconds" type="number" required>
+  Number of milliseconds to sleep
+</ParamField>
+
+```javascript
+Ant.msleep(500); // Sleep for 500ms
+```
+
+### Ant.usleep()
+
+Blocks execution for the specified number of microseconds.
+
+<ParamField path="microseconds" type="number" required>
+  Number of microseconds to sleep
+</ParamField>
+
+```javascript
+Ant.usleep(1000); // Sleep for 1ms (1000 microseconds)
+```
+
+### Ant.signal()
+
+Registers a signal handler.
+
+<ParamField path="signal" type="number" required>
+  Signal number (e.g., SIGINT = 2, SIGTERM = 15)
+</ParamField>
+
+<ParamField path="handler" type="function" required>
+  Function to call when signal is received
+</ParamField>
+
+```javascript
+// Handle Ctrl+C gracefully
+Ant.signal(2, (signum) => {
+  console.log('Received SIGINT, cleaning up...');
+  process.exit(0);
+});
+```
+
+### Ant.typeof()
+
+Returns the internal type of a value as a string.
+
+<ParamField path="value" type="any" required>
+  The value to check
+</ParamField>
+
+**Returns:** String representing the type: `"number"`, `"string"`, `"object"`, `"array"`, `"function"`, `"null"`, `"undefined"`, `"boolean"`, `"symbol"`, etc.
+
+```javascript
+Ant.typeof(42);        // "number"
+Ant.typeof('hello');   // "string"
+Ant.typeof({});        // "object"
+Ant.typeof([]);        // "array"
+Ant.typeof(() => {});  // "function"
+Ant.typeof(null);      // "null"
+Ant.typeof(undefined); // "undefined"
+```
+
+## Ant.raw
+
+Low-level runtime utilities.
+
+### Ant.raw.typeof()
+
+Returns the internal numeric type tag of a value.
+
+<ParamField path="value" type="any" required>
+  The value to check
+</ParamField>
+
+**Returns:** Number representing the internal type tag.
+
+```javascript
+const typeTag = Ant.raw.typeof(42);
+console.log(typeTag); // Internal numeric type code
+```

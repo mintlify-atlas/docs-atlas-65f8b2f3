@@ -1,0 +1,207 @@
+---
+title: Introduction
+description: A JavaScript runtime that fits in your pocket with full async/await, modules, HTTP servers, crypto, and more
+---
+
+<img
+  className="block dark:hidden"
+  src="/images/hero-light.svg"
+  alt="Ant JavaScript Runtime"
+/>
+<img
+  className="hidden dark:block"
+  src="/images/hero-dark.svg"
+  alt="Ant JavaScript Runtime"
+/>
+
+## Ant-sized JavaScript runtime
+
+Ant is a lightweight, high-performance JavaScript runtime built from the ground up. It's designed to be small, fast, and feature-complete, bringing modern JavaScript capabilities to environments where size and efficiency matter.
+
+<CardGroup cols={2}>
+  <Card
+    title="Modern JavaScript"
+    icon="code"
+    href="#key-features"
+  >
+    Full ES2024+ support with async/await, modules, classes, and more
+  </Card>
+  <Card
+    title="Built-in HTTP server"
+    icon="server"
+    href="/quickstart"
+  >
+    Create web servers with the native Ant.serve() API
+  </Card>
+  <Card
+    title="Crypto & security"
+    icon="shield-halved"
+    href="#cryptography-and-security"
+  >
+    Built-in cryptographic primitives powered by libsodium
+  </Card>
+  <Card
+    title="File system access"
+    icon="folder-open"
+    href="#file-system-operations"
+  >
+    Full sync and async file system APIs
+  </Card>
+</CardGroup>
+
+## Key features
+
+### Full async/await support
+
+Ant provides complete async/await functionality with promises, allowing you to write clean asynchronous code:
+
+```javascript
+async function fetchData() {
+  const response = await fetch('https://api.github.com/zen');
+  return await response.text();
+}
+
+const data = await fetchData();
+console.log(data);
+```
+
+### ES module system
+
+Import and export modules using standard ES module syntax. Ant supports both relative imports and the special `ant:` prefix for built-in modules:
+
+```javascript
+import { readFile, writeFile } from 'ant:fs';
+import { join } from 'ant:path';
+import { createRouter } from './router.js';
+```
+
+### Native HTTP server
+
+Build HTTP servers with the built-in `Ant.serve()` API. No external dependencies required:
+
+```javascript
+function handleRequest(c) {
+  const { req, res } = c;
+  res.body(`Hello from Ant ${Ant.version}!`);
+}
+
+console.log('Server running on http://localhost:8000');
+Ant.serve(8000, handleRequest);
+```
+
+### HTTP client with fetch
+
+Make HTTP requests using the familiar fetch API:
+
+```javascript
+const response = await fetch('https://api.example.com/data');
+const json = await response.json();
+console.log(json);
+```
+
+### File system operations
+
+Both synchronous and asynchronous file system operations are supported:
+
+```javascript
+import fs from 'ant:fs';
+import path from 'ant:path';
+
+// Synchronous
+const content = fs.readFileSync('file.txt', 'utf8');
+fs.writeFileSync('output.txt', 'hello world');
+
+// Asynchronous
+const data = await fs.readFile('file.txt');
+await fs.writeFile('output.txt', data);
+```
+
+### Cryptography and security
+
+Built-in cryptographic functions powered by libsodium:
+
+```javascript
+import crypto from 'ant:crypto';
+
+const hash = crypto.hash('sha256', 'hello world');
+const random = crypto.randomBytes(32);
+```
+
+### Worker threads
+
+Run JavaScript in parallel using worker threads:
+
+```javascript
+import { Worker } from 'ant:worker_threads';
+
+const worker = new Worker('./worker.js');
+worker.postMessage({ task: 'process' });
+worker.on('message', (result) => {
+  console.log('Worker result:', result);
+});
+```
+
+### Process management
+
+Spawn child processes and execute shell commands:
+
+```javascript
+import { spawn, exec } from 'ant:child_process';
+
+const child = spawn('ls', ['-la']);
+child.stdout.on('data', (data) => {
+  console.log(data.toString());
+});
+```
+
+### Built-in database (LMDB)
+
+Embedded key-value database using LMDB:
+
+```javascript
+import lmdb from 'ant:lmdb';
+
+const db = lmdb.open('./data');
+db.put('key', 'value');
+const value = db.get('key');
+```
+
+### Storage APIs
+
+Browser-compatible localStorage and sessionStorage:
+
+```javascript
+localStorage.setItem('user', JSON.stringify({ name: 'Alice' }));
+const user = JSON.parse(localStorage.getItem('user'));
+
+sessionStorage.setItem('token', 'abc123');
+```
+
+<Note>
+  Ant is built with C23 using modern tooling including Meson, Rust (for the OXC type-strip library), and Zig (for the package manager). It supports Linux, macOS, and Windows.
+</Note>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Installation"
+    icon="download"
+    href="/installation"
+  >
+    Install Ant on your system in seconds
+  </Card>
+  <Card
+    title="Quick start"
+    icon="rocket"
+    href="/quickstart"
+  >
+    Build your first Ant application
+  </Card>
+</CardGroup>
+
+## Community
+
+Join the Ant community on [Discord](http://discord.gg/CH7YSjWGzY) to ask questions, share projects, and contribute to the runtime.
+
+Read the [blog post about Ant](https://s.tail.so/js-in-one-month) to learn about the project's origins and design philosophy.

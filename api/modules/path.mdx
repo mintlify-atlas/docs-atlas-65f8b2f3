@@ -1,0 +1,292 @@
+---
+title: 'ant:path'
+description: 'Path manipulation utilities for file system paths'
+---
+
+The `ant:path` module provides utilities for working with file and directory paths.
+
+## Import
+
+```javascript
+import * as path from 'ant:path';
+import { join, resolve, dirname } from 'ant:path';
+```
+
+## Path Components
+
+### basename()
+
+Returns the last portion of a path.
+
+```javascript
+const base = path.basename(path, ext);
+```
+
+<ParamField path="path" type="string" required>
+  The file path
+</ParamField>
+
+<ParamField path="ext" type="string" optional>
+  Optional file extension to remove
+</ParamField>
+
+<ResponseField name="return" type="string">
+  The last portion of the path
+</ResponseField>
+
+```javascript
+path.basename('/foo/bar/baz.txt');        // 'baz.txt'
+path.basename('/foo/bar/baz.txt', '.txt'); // 'baz'
+```
+
+### dirname()
+
+Returns the directory name of a path.
+
+```javascript
+const dir = path.dirname(path);
+```
+
+<ParamField path="path" type="string" required>
+  The file path
+</ParamField>
+
+<ResponseField name="return" type="string">
+  The directory portion of the path
+</ResponseField>
+
+```javascript
+path.dirname('/foo/bar/baz.txt'); // '/foo/bar'
+```
+
+### extname()
+
+Returns the file extension.
+
+```javascript
+const ext = path.extname(path);
+```
+
+<ParamField path="path" type="string" required>
+  The file path
+</ParamField>
+
+<ResponseField name="return" type="string">
+  The extension including the dot
+</ResponseField>
+
+```javascript
+path.extname('index.html');     // '.html'
+path.extname('index.coffee.md'); // '.md'
+path.extname('index.');         // '.'
+path.extname('index');          // ''
+```
+
+## Path Operations
+
+### join()
+
+Joins path segments together.
+
+```javascript
+const joined = path.join(...paths);
+```
+
+<ParamField path="paths" type="string[]" required>
+  Path segments to join
+</ParamField>
+
+<ResponseField name="return" type="string">
+  The joined path
+</ResponseField>
+
+```javascript
+path.join('/foo', 'bar', 'baz/asdf', 'quux', '..');
+// Returns: '/foo/bar/baz/asdf'
+```
+
+### resolve()
+
+Resolves a sequence of paths to an absolute path.
+
+```javascript
+const absolute = path.resolve(...paths);
+```
+
+<ParamField path="paths" type="string[]" required>
+  Path segments to resolve
+</ParamField>
+
+<ResponseField name="return" type="string">
+  The resolved absolute path
+</ResponseField>
+
+```javascript
+path.resolve('/foo/bar', './baz');
+// Returns: '/foo/bar/baz'
+
+path.resolve('/foo/bar', '/tmp/file/');
+// Returns: '/tmp/file'
+```
+
+### normalize()
+
+Normalizes a path, resolving '..' and '.' segments.
+
+```javascript
+const normalized = path.normalize(path);
+```
+
+<ParamField path="path" type="string" required>
+  The path to normalize
+</ParamField>
+
+<ResponseField name="return" type="string">
+  The normalized path
+</ResponseField>
+
+```javascript
+path.normalize('/foo/bar//baz/asdf/quux/..');
+// Returns: '/foo/bar/baz/asdf'
+```
+
+### relative()
+
+Returns the relative path from one path to another.
+
+```javascript
+const rel = path.relative(from, to);
+```
+
+<ParamField path="from" type="string" required>
+  Starting path
+</ParamField>
+
+<ParamField path="to" type="string" required>
+  Destination path
+</ParamField>
+
+<ResponseField name="return" type="string">
+  The relative path
+</ResponseField>
+
+### isAbsolute()
+
+Determines if a path is absolute.
+
+```javascript
+const isAbs = path.isAbsolute(path);
+```
+
+<ParamField path="path" type="string" required>
+  Path to check
+</ParamField>
+
+<ResponseField name="return" type="boolean">
+  True if path is absolute
+</ResponseField>
+
+```javascript
+path.isAbsolute('/foo/bar'); // true
+path.isAbsolute('quux/');    // false
+path.isAbsolute('.');        // false
+```
+
+## Path Parsing
+
+### parse()
+
+Parses a path into an object.
+
+```javascript
+const pathObject = path.parse(path);
+```
+
+<ParamField path="path" type="string" required>
+  Path to parse
+</ParamField>
+
+<ResponseField name="return" type="object">
+  Object with root, dir, base, ext, and name properties
+</ResponseField>
+
+```javascript
+path.parse('/home/user/dir/file.txt');
+// Returns:
+// {
+//   root: '/',
+//   dir: '/home/user/dir',
+//   base: 'file.txt',
+//   ext: '.txt',
+//   name: 'file'
+// }
+```
+
+### format()
+
+Formats a path object into a path string.
+
+```javascript
+const pathString = path.format(pathObject);
+```
+
+<ParamField path="pathObject" type="object" required>
+  Object with path components
+</ParamField>
+
+<ResponseField name="return" type="string">
+  The formatted path
+</ResponseField>
+
+```javascript
+path.format({
+  dir: '/home/user/dir',
+  base: 'file.txt'
+});
+// Returns: '/home/user/dir/file.txt'
+```
+
+## Properties
+
+<ResponseField name="sep" type="string">
+  Platform-specific path separator ('/' on POSIX, '\\' on Windows)
+</ResponseField>
+
+<ResponseField name="delimiter" type="string">
+  Platform-specific path delimiter (':' on POSIX, ';' on Windows)
+</ResponseField>
+
+## Example
+
+```javascript
+import * as path from 'ant:path';
+
+// Join paths
+const filePath = path.join(__dirname, 'data', 'file.txt');
+
+// Get components
+const dir = path.dirname(filePath);
+const file = path.basename(filePath);
+const ext = path.extname(filePath);
+
+console.log('Directory:', dir);
+console.log('Filename:', file);
+console.log('Extension:', ext);
+
+// Resolve absolute path
+const absolutePath = path.resolve('data', 'config.json');
+
+// Parse path
+const parsed = path.parse('/home/user/project/src/index.js');
+console.log('Name:', parsed.name); // 'index'
+console.log('Extension:', parsed.ext); // '.js'
+
+// Check if absolute
+if (path.isAbsolute(filePath)) {
+  console.log('Path is absolute');
+}
+
+// Normalize path
+const normalized = path.normalize('./foo/../bar/./baz');
+console.log(normalized); // 'bar/baz'
+```

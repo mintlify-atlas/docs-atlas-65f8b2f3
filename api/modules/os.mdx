@@ -1,0 +1,306 @@
+---
+title: 'ant:os'
+description: 'Operating system utilities and system information'
+---
+
+The `ant:os` module provides operating system-related utility methods and properties.
+
+## Import
+
+```javascript
+import * as os from 'ant:os';
+import { cpus, freemem, platform } from 'ant:os';
+```
+
+## System Information
+
+### platform()
+
+Returns the operating system platform.
+
+```javascript
+const platform = os.platform();
+```
+
+<ResponseField name="return" type="string">
+  Platform identifier: 'linux', 'darwin', 'win32', 'freebsd', etc.
+</ResponseField>
+
+### type()
+
+Returns the operating system name.
+
+```javascript
+const type = os.type();
+```
+
+<ResponseField name="return" type="string">
+  OS name: 'Linux', 'Darwin', 'Windows_NT', etc.
+</ResponseField>
+
+### release()
+
+Returns the operating system release.
+
+```javascript
+const release = os.release();
+```
+
+<ResponseField name="return" type="string">
+  OS release version string
+</ResponseField>
+
+### version()
+
+Returns the operating system version.
+
+```javascript
+const version = os.version();
+```
+
+<ResponseField name="return" type="string">
+  OS version string
+</ResponseField>
+
+### arch()
+
+Returns the CPU architecture.
+
+```javascript
+const arch = os.arch();
+```
+
+<ResponseField name="return" type="string">
+  Architecture: 'x64', 'arm64', 'ia32', etc.
+</ResponseField>
+
+### machine()
+
+Returns the machine type.
+
+```javascript
+const machine = os.machine();
+```
+
+<ResponseField name="return" type="string">
+  Machine type identifier
+</ResponseField>
+
+### hostname()
+
+Returns the hostname of the operating system.
+
+```javascript
+const hostname = os.hostname();
+```
+
+<ResponseField name="return" type="string">
+  System hostname
+</ResponseField>
+
+## Memory Information
+
+### totalmem()
+
+Returns the total amount of system memory.
+
+```javascript
+const total = os.totalmem();
+```
+
+<ResponseField name="return" type="number">
+  Total memory in bytes
+</ResponseField>
+
+### freemem()
+
+Returns the amount of free system memory.
+
+```javascript
+const free = os.freemem();
+```
+
+<ResponseField name="return" type="number">
+  Free memory in bytes
+</ResponseField>
+
+## CPU Information
+
+### cpus()
+
+Returns information about each logical CPU core.
+
+```javascript
+const cpus = os.cpus();
+```
+
+<ResponseField name="return" type="Array<object>">
+  Array of CPU information objects
+</ResponseField>
+
+Each CPU object contains:
+- `model` (string) - CPU model name
+- `speed` (number) - CPU speed in MHz
+- `times` (object) - CPU times with user, nice, sys, idle, and irq properties
+
+### availableParallelism()
+
+Returns an estimate of the default parallelism a program should use.
+
+```javascript
+const parallelism = os.availableParallelism();
+```
+
+<ResponseField name="return" type="number">
+  Number of available CPU cores
+</ResponseField>
+
+### loadavg()
+
+Returns the load average (Unix-like systems only).
+
+```javascript
+const [load1, load5, load15] = os.loadavg();
+```
+
+<ResponseField name="return" type="Array<number>">
+  Array with 1, 5, and 15 minute load averages
+</ResponseField>
+
+## System Uptime
+
+### uptime()
+
+Returns the system uptime in seconds.
+
+```javascript
+const uptime = os.uptime();
+```
+
+<ResponseField name="return" type="number">
+  System uptime in seconds
+</ResponseField>
+
+## Directories
+
+### homedir()
+
+Returns the home directory of the current user.
+
+```javascript
+const home = os.homedir();
+```
+
+<ResponseField name="return" type="string">
+  Home directory path
+</ResponseField>
+
+### tmpdir()
+
+Returns the operating system's default directory for temporary files.
+
+```javascript
+const tmp = os.tmpdir();
+```
+
+<ResponseField name="return" type="string">
+  Temporary directory path
+</ResponseField>
+
+## Constants
+
+### EOL
+
+End-of-line marker for the platform.
+
+```javascript
+const eol = os.EOL; // '\n' on POSIX, '\r\n' on Windows
+```
+
+### endianness()
+
+Returns the endianness of the CPU.
+
+```javascript
+const endian = os.endianness();
+```
+
+<ResponseField name="return" type="string">
+  Either 'BE' for big endian or 'LE' for little endian
+</ResponseField>
+
+## Network Interfaces
+
+### networkInterfaces()
+
+Returns network interface information.
+
+```javascript
+const interfaces = os.networkInterfaces();
+```
+
+<ResponseField name="return" type="object">
+  Object mapping interface names to arrays of address objects
+</ResponseField>
+
+Each address object contains:
+- `address` (string) - IP address
+- `netmask` (string) - Network mask
+- `family` (string) - 'IPv4' or 'IPv6'
+- `mac` (string) - MAC address
+- `internal` (boolean) - Whether interface is loopback
+
+## User Information
+
+### userInfo()
+
+Returns information about the current user.
+
+```javascript
+const user = os.userInfo();
+```
+
+<ResponseField name="return" type="object">
+  Object with username, uid, gid, shell, and homedir properties
+</ResponseField>
+
+## Example
+
+```javascript
+import * as os from 'ant:os';
+
+// System information
+console.log('Platform:', os.platform());
+console.log('Architecture:', os.arch());
+console.log('Hostname:', os.hostname());
+console.log('OS Type:', os.type());
+console.log('OS Release:', os.release());
+
+// Memory information
+const totalMem = os.totalmem();
+const freeMem = os.freemem();
+console.log('Total Memory:', (totalMem / 1024 / 1024 / 1024).toFixed(2), 'GB');
+console.log('Free Memory:', (freeMem / 1024 / 1024 / 1024).toFixed(2), 'GB');
+
+// CPU information
+const cpus = os.cpus();
+console.log('CPU Count:', cpus.length);
+console.log('CPU Model:', cpus[0].model);
+console.log('CPU Speed:', cpus[0].speed, 'MHz');
+
+// Load average
+const [load1, load5, load15] = os.loadavg();
+console.log('Load Average:', load1.toFixed(2), load5.toFixed(2), load15.toFixed(2));
+
+// Directories
+console.log('Home Directory:', os.homedir());
+console.log('Temp Directory:', os.tmpdir());
+
+// Uptime
+const uptimeHours = os.uptime() / 3600;
+console.log('System Uptime:', uptimeHours.toFixed(2), 'hours');
+
+// Parallelism
+const cores = os.availableParallelism();
+console.log('Available CPU cores:', cores);
+```

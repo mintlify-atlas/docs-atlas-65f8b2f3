@@ -1,0 +1,174 @@
+---
+title: ant exec
+description: Execute commands from node_modules/.bin or download temporarily
+---
+
+Run commands from `node_modules/.bin`, global packages, or download packages temporarily for one-time execution.
+
+## Usage
+
+```bash
+ant exec <command> [args...]
+ant x <command> [args...]
+```
+
+## Parameters
+
+<ParamField path="command" type="string" required>
+  Name of the command to execute. Can be a binary from:
+  - Local `node_modules/.bin`
+  - Global `~/.ant/pkg/global/node_modules`
+  - npm registry (downloaded temporarily)
+</ParamField>
+
+<ParamField path="args" type="string[]">
+  Arguments to pass to the command.
+</ParamField>
+
+## Options
+
+<ParamField query="--ant" type="boolean">
+  Run the command with `ant` runtime instead of Node.js.
+</ParamField>
+
+<ParamField query="--verbose" type="boolean">
+  Enable verbose output.
+</ParamField>
+
+<ParamField query="-h, --help" type="boolean">
+  Display help information.
+</ParamField>
+
+## Examples
+
+### List available commands
+
+```bash
+ant exec
+```
+
+**Output:**
+```
+Usage: ant x [--ant] <command> [args...]
+
+Run a command from node_modules/.bin or download temporarily
+
+Options:
+  --ant    Run with ant instead of node
+
+Available commands:
+  tsc
+  eslint
+  prettier
+  jest
+```
+
+### Run local binary
+
+```bash
+ant x tsc --noEmit
+```
+
+### Run with ant runtime
+
+```bash
+ant x --ant esbuild src/index.js --bundle
+```
+
+### Run global binary
+
+```bash
+ant x -g pm2 start app.js
+```
+
+### Download and run temporarily
+
+If the command is not installed, Ant downloads it temporarily:
+
+```bash
+ant x cowsay "Hello, World!"
+```
+
+**Output:**
+```
+🔍 Resolving cowsay
+ _________________
+< Hello, World! >
+ -----------------
+        \   ^__^
+         \  (oo)\_______
+            (__)\       )\/\
+                ||----w |
+                ||     ||
+```
+
+### Run specific version
+
+```bash
+ant x typescript@5.0.0 tsc --version
+```
+
+### Pass complex arguments
+
+```bash
+ant x prettier --write "src/**/*.{js,ts,json}"
+```
+
+## Execution Priority
+
+Ant searches for binaries in this order:
+
+1. Local `node_modules/.bin`
+2. Global `~/.ant/pkg/global/node_modules`
+3. Download from npm registry (temporary)
+
+## Temporary Downloads
+
+When a command is not found locally or globally:
+
+- Package is downloaded to a temporary location
+- Command is executed immediately
+- Package may be cached for future use
+
+```bash
+ant x create-react-app my-app
+# Downloads create-react-app temporarily
+```
+
+## Runtime Selection
+
+By default, binaries run with Node.js. Use `--ant` to run with Ant's runtime:
+
+```bash
+# Runs with node
+ant x esbuild src/index.js
+
+# Runs with ant
+ant x --ant esbuild src/index.js
+```
+
+## Exit Codes
+
+The exit code from the command is propagated:
+
+```bash
+ant x eslint .
+# Exit code 1 if linting errors found
+```
+
+## Command Not Found
+
+```bash
+ant x nonexistent-command
+```
+
+**Output:**
+```
+Error: 'nonexistent-command' not found
+```
+
+## Related
+
+- [ant run](/cli/run-script) - Run package.json scripts
+- [ant add](/cli/add) - Install packages locally
+- [ant install -g](/cli/install) - Install packages globally

@@ -1,0 +1,263 @@
+---
+title: Timer Functions
+description: Asynchronous timer functions for scheduling code execution
+---
+
+Ant provides standard timer functions for scheduling code execution, compatible with browser and Node.js APIs.
+
+## Functions
+
+### setTimeout()
+
+Executes a function after a specified delay.
+
+<ParamField path="callback" type="function" required>
+  The function to execute
+</ParamField>
+
+<ParamField path="delay" type="number" required>
+  Delay in milliseconds before executing the callback
+</ParamField>
+
+<ParamField path="...args" type="any">
+  Optional arguments to pass to the callback
+</ParamField>
+
+**Returns:** Timer ID (number) that can be used with `clearTimeout()`.
+
+```javascript
+const timerId = setTimeout(() => {
+  console.log('Executed after 1 second');
+}, 1000);
+```
+
+### clearTimeout()
+
+Cancels a timeout previously created with `setTimeout()`.
+
+<ParamField path="timerId" type="number" required>
+  The timer ID returned by setTimeout()
+</ParamField>
+
+```javascript
+const timerId = setTimeout(() => {
+  console.log('This will not run');
+}, 1000);
+
+clearTimeout(timerId);
+```
+
+### setInterval()
+
+Repeatedly executes a function with a fixed delay between each call.
+
+<ParamField path="callback" type="function" required>
+  The function to execute
+</ParamField>
+
+<ParamField path="delay" type="number" required>
+  Delay in milliseconds between each execution (minimum 1ms)
+</ParamField>
+
+<ParamField path="...args" type="any">
+  Optional arguments to pass to the callback
+</ParamField>
+
+**Returns:** Interval ID (number) that can be used with `clearInterval()`.
+
+```javascript
+let count = 0;
+const intervalId = setInterval(() => {
+  count++;
+  console.log(`Count: ${count}`);
+  
+  if (count >= 5) {
+    clearInterval(intervalId);
+  }
+}, 1000);
+```
+
+### clearInterval()
+
+Cancels an interval previously created with `setInterval()`.
+
+<ParamField path="intervalId" type="number" required>
+  The interval ID returned by setInterval()
+</ParamField>
+
+```javascript
+const intervalId = setInterval(() => {
+  console.log('Repeating...');
+}, 1000);
+
+// Stop after 5 seconds
+setTimeout(() => {
+  clearInterval(intervalId);
+  console.log('Stopped');
+}, 5000);
+```
+
+### setImmediate()
+
+Executes a function immediately after the current event loop iteration completes, but before any timers or I/O callbacks.
+
+<ParamField path="callback" type="function" required>
+  The function to execute
+</ParamField>
+
+**Returns:** Immediate ID (number) that can be used with `clearImmediate()`.
+
+```javascript
+setImmediate(() => {
+  console.log('Executed immediately');
+});
+
+console.log('This runs first');
+// Output:
+// This runs first
+// Executed immediately
+```
+
+### clearImmediate()
+
+Cancels an immediate previously created with `setImmediate()`.
+
+<ParamField path="immediateId" type="number" required>
+  The immediate ID returned by setImmediate()
+</ParamField>
+
+```javascript
+const immediateId = setImmediate(() => {
+  console.log('This will not run');
+});
+
+clearImmediate(immediateId);
+```
+
+### queueMicrotask()
+
+Queues a microtask to be executed before the next task in the event loop. Microtasks run before timers and I/O callbacks.
+
+<ParamField path="callback" type="function" required>
+  The function to execute as a microtask
+</ParamField>
+
+```javascript
+queueMicrotask(() => {
+  console.log('Microtask');
+});
+
+setImmediate(() => {
+  console.log('Immediate');
+});
+
+console.log('Synchronous');
+// Output:
+// Synchronous
+// Microtask
+// Immediate
+```
+
+## Examples
+
+### Delayed Execution
+
+```javascript
+console.log('Starting...');
+
+setTimeout(() => {
+  console.log('1 second later');
+}, 1000);
+
+setTimeout(() => {
+  console.log('2 seconds later');
+}, 2000);
+```
+
+### Passing Arguments to Timers
+
+```javascript
+function greet(name, greeting) {
+  console.log(`${greeting}, ${name}!`);
+}
+
+setTimeout(greet, 1000, 'Alice', 'Hello');
+// After 1 second: "Hello, Alice!"
+```
+
+### Interval with Cleanup
+
+```javascript
+let results = {};
+let intervalDoneResolve;
+const intervalDone = new Promise(resolve => {
+  intervalDoneResolve = resolve;
+});
+
+let count = 0;
+const interval = setInterval(() => {
+  count++;
+  if (count >= 3) {
+    clearInterval(interval);
+    results.interval = count;
+    intervalDoneResolve();
+  }
+}, 10);
+
+await intervalDone;
+console.log(`Ran ${results.interval} times`);
+```
+
+### Event Loop Ordering
+
+```javascript
+console.log('1: Synchronous');
+
+setTimeout(() => {
+  console.log('4: Timeout');
+}, 0);
+
+queueMicrotask(() => {
+  console.log('3: Microtask');
+});
+
+setImmediate(() => {
+  console.log('5: Immediate');
+});
+
+Promise.resolve().then(() => {
+  console.log('2: Promise (microtask)');
+});
+
+// Output:
+// 1: Synchronous
+// 2: Promise (microtask)
+// 3: Microtask
+// 4: Timeout
+// 5: Immediate
+```
+
+### Canceling Timers
+
+```javascript
+const canceled = setTimeout(() => {
+  console.log('This will not run');
+}, 1000);
+
+clearTimeout(canceled);
+
+const immediateId = setImmediate(() => {
+  console.log('This will not run either');
+});
+
+clearImmediate(immediateId);
+```
+
+## Notes
+
+- Timer delays are specified in milliseconds
+- `setTimeout` with delay < 1ms is clamped to 0ms
+- `setInterval` with delay < 1ms is clamped to 1ms
+- Timers are implemented using libuv for efficient event loop integration
+- Microtasks always run before the next timer or I/O callback
+- Immediates run after microtasks but before the next event loop iteration

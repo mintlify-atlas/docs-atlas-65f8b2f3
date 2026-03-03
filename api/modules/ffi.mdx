@@ -1,0 +1,351 @@
+---
+title: 'ant:ffi'
+description: 'Foreign Function Interface for calling native libraries'
+---
+
+The `ant:ffi` module provides a Foreign Function Interface (FFI) for calling native C libraries.
+
+## Import
+
+```javascript
+import * as ffi from 'ant:ffi';
+import { dlopen, FFIType } from 'ant:ffi';
+```
+
+## Loading Libraries
+
+### dlopen()
+
+Loads a native shared library.
+
+```javascript
+const lib = ffi.dlopen(path);
+```
+
+<ParamField path="path" type="string" required>
+  Path to the shared library (.so, .dylib, or .dll)
+</ParamField>
+
+<ResponseField name="return" type="Library">
+  Library object for defining and calling functions
+</ResponseField>
+
+## Library Object
+
+### define()
+
+Defines a function from the loaded library.
+
+```javascript
+lib.define(name, signature);
+```
+
+<ParamField path="name" type="string" required>
+  Function name in the library
+</ParamField>
+
+<ParamField path="signature" type="object | Array" required>
+  Function signature with return type and argument types
+</ParamField>
+
+**Signature format (object):**
+```javascript
+{
+  returns: 'int',
+  args: ['string', 'int']
+}
+```
+
+**Signature format (array):**
+```javascript
+['int', ['string', 'int']]
+```
+
+### call()
+
+Calls a defined function.
+
+```javascript
+const result = lib.call(name, ...args);
+```
+
+<ParamField path="name" type="string" required>
+  Function name
+</ParamField>
+
+<ParamField path="args" type="any[]" optional>
+  Function arguments
+</ParamField>
+
+## FFI Types
+
+Supported FFI types:
+
+<ResponseField name="FFIType.void" type="string">
+  Void return type
+</ResponseField>
+
+<ResponseField name="FFIType.int8" type="string">
+  8-bit signed integer
+</ResponseField>
+
+<ResponseField name="FFIType.int16" type="string">
+  16-bit signed integer
+</ResponseField>
+
+<ResponseField name="FFIType.int" type="string">
+  32-bit signed integer
+</ResponseField>
+
+<ResponseField name="FFIType.int64" type="string">
+  64-bit signed integer
+</ResponseField>
+
+<ResponseField name="FFIType.uint8" type="string">
+  8-bit unsigned integer
+</ResponseField>
+
+<ResponseField name="FFIType.uint16" type="string">
+  16-bit unsigned integer
+</ResponseField>
+
+<ResponseField name="FFIType.uint64" type="string">
+  64-bit unsigned integer
+</ResponseField>
+
+<ResponseField name="FFIType.float" type="string">
+  32-bit floating point
+</ResponseField>
+
+<ResponseField name="FFIType.double" type="string">
+  64-bit floating point
+</ResponseField>
+
+<ResponseField name="FFIType.pointer" type="string">
+  Pointer type
+</ResponseField>
+
+<ResponseField name="FFIType.string" type="string">
+  C string (char*)
+</ResponseField>
+
+## Memory Management
+
+### alloc()
+
+Allocates memory.
+
+```javascript
+const ptr = ffi.alloc(size);
+```
+
+<ParamField path="size" type="number" required>
+  Number of bytes to allocate
+</ParamField>
+
+<ResponseField name="return" type="number">
+  Pointer to allocated memory
+</ResponseField>
+
+### free()
+
+Frees allocated memory.
+
+```javascript
+ffi.free(ptr);
+```
+
+<ParamField path="ptr" type="number" required>
+  Pointer to free
+</ParamField>
+
+### read()
+
+Reads data from a memory address.
+
+```javascript
+const data = ffi.read(ptr, size, type);
+```
+
+<ParamField path="ptr" type="number" required>
+  Memory address
+</ParamField>
+
+<ParamField path="size" type="number" required>
+  Number of bytes to read
+</ParamField>
+
+<ParamField path="type" type="string" optional>
+  Data type to read
+</ParamField>
+
+### write()
+
+Writes data to a memory address.
+
+```javascript
+ffi.write(ptr, data, type);
+```
+
+<ParamField path="ptr" type="number" required>
+  Memory address
+</ParamField>
+
+<ParamField path="data" type="any" required>
+  Data to write
+</ParamField>
+
+<ParamField path="type" type="string" optional>
+  Data type
+</ParamField>
+
+### pointer()
+
+Gets a pointer from a value.
+
+```javascript
+const ptr = ffi.pointer(value);
+```
+
+<ParamField path="value" type="any" required>
+  Value to get pointer from
+</ParamField>
+
+### readPtr()
+
+Reads a pointer value from memory.
+
+```javascript
+const ptr = ffi.readPtr(address);
+```
+
+<ParamField path="address" type="number" required>
+  Memory address to read from
+</ParamField>
+
+## Callbacks
+
+### callback()
+
+Creates a C callback from a JavaScript function.
+
+```javascript
+const cb = ffi.callback(signature, jsFunction);
+```
+
+<ParamField path="signature" type="object" required>
+  Callback signature with returns and args
+</ParamField>
+
+<ParamField path="jsFunction" type="function" required>
+  JavaScript function to wrap
+</ParamField>
+
+<ResponseField name="return" type="number">
+  Pointer to the callback function
+</ResponseField>
+
+### freeCallback()
+
+Frees a callback created with `callback()`.
+
+```javascript
+ffi.freeCallback(callbackPtr);
+```
+
+<ParamField path="callbackPtr" type="number" required>
+  Pointer to the callback to free
+</ParamField>
+
+## Properties
+
+<ResponseField name="suffix" type="string">
+  Platform-specific library suffix ('so', 'dylib', or 'dll')
+</ResponseField>
+
+## Example
+
+```javascript
+import * as ffi from 'ant:ffi';
+
+// Load libc
+const libc = ffi.dlopen('libc.' + ffi.suffix);
+
+// Define functions
+libc.define('strlen', {
+  returns: 'int',
+  args: ['string']
+});
+
+libc.define('printf', {
+  returns: 'int',
+  args: ['string', '...']
+});
+
+// Call functions
+const len = libc.strlen('Hello, World!');
+console.log('Length:', len);
+
+libc.printf('Hello from FFI!\n');
+
+// Memory management
+const ptr = ffi.alloc(1024);
+ffi.write(ptr, 'Hello', 'string');
+const data = ffi.read(ptr, 5, 'string');
+console.log('Read:', data);
+ffi.free(ptr);
+```
+
+## Advanced Example
+
+```javascript
+import * as ffi from 'ant:ffi';
+
+// Load a custom library
+const mylib = ffi.dlopen('./libmylib.' + ffi.suffix);
+
+// Define complex function
+mylib.define('process_data', {
+  returns: 'int',
+  args: ['pointer', 'int', 'pointer']
+});
+
+// Allocate buffers
+const inputSize = 256;
+const outputSize = 512;
+const input = ffi.alloc(inputSize);
+const output = ffi.alloc(outputSize);
+
+// Write input data
+ffi.write(input, 'Some input data', 'string');
+
+// Call function
+const result = mylib.process_data(input, inputSize, output);
+
+if (result === 0) {
+  const resultData = ffi.read(output, 100, 'string');
+  console.log('Result:', resultData);
+}
+
+// Clean up
+ffi.free(input);
+ffi.free(output);
+
+// Create callback
+const callback = ffi.callback({
+  returns: 'void',
+  args: ['int', 'string']
+}, (code, message) => {
+  console.log(`Callback: code=${code}, message=${message}`);
+});
+
+// Use callback (pass to native function)
+mylib.define('set_callback', {
+  returns: 'void',
+  args: ['pointer']
+});
+mylib.set_callback(callback);
+
+// Don't forget to free callbacks when done
+ffi.freeCallback(callback);
+```

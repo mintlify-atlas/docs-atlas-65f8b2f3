@@ -1,0 +1,633 @@
+---
+title: 'ant:worker_threads'
+description: 'Multi-threading with Worker class and MessagePort for parallel execution'
+---
+
+The `ant:worker_threads` module provides the ability to run JavaScript in parallel using worker threads. Workers communicate through message passing and can share environment data.
+
+## Import
+
+```javascript
+import { Worker, MessageChannel, parentPort } from 'ant:worker_threads';
+import * as worker_threads from 'ant:worker_threads';
+```
+
+## Classes
+
+### Worker
+
+The Worker class represents a separate JavaScript execution thread.
+
+#### Constructor
+
+```javascript
+const worker = new Worker(filename, options);
+```
+
+<ParamField path="filename" type="string | URL" required>
+  Path to the worker script file, or a file:// URL
+</ParamField>
+
+<ParamField path="options" type="object" optional>
+  Worker configuration options
+</ParamField>
+
+**Options:**
+
+<ParamField path="workerData" type="any" optional>
+  Data to pass to the worker (must be JSON-serializable)
+</ParamField>
+
+<ResponseField name="return" type="Worker">
+  A Worker instance
+</ResponseField>
+
+#### Methods
+
+##### on()
+
+Adds an event listener to the worker.
+
+```javascript
+worker.on(event, listener);
+```
+
+<ParamField path="event" type="string" required>
+  Event name ('message' or 'exit')
+</ParamField>
+
+<ParamField path="listener" type="function" required>
+  Event handler function
+</ParamField>
+
+<ResponseField name="return" type="Worker">
+  The Worker instance for chaining
+</ResponseField>
+
+##### once()
+
+Adds a one-time event listener.
+
+```javascript
+worker.once(event, listener);
+```
+
+##### postMessage()
+
+Sends a message to the worker.
+
+```javascript
+worker.postMessage(value);
+```
+
+<ParamField path="value" type="any" required>
+  Message to send (must be JSON-serializable)
+</ParamField>
+
+**Note:** Currently not fully implemented. Workers communicate via stdout.
+
+##### terminate()
+
+Terminates the worker thread.
+
+```javascript
+const exitCode = await worker.terminate();
+```
+
+<ResponseField name="return" type="Promise<number>">
+  Promise that resolves with the worker's exit code
+</ResponseField>
+
+##### ref()
+
+Prevents the event loop from exiting while the worker is active.
+
+```javascript
+worker.ref();
+```
+
+##### unref()
+
+Allows the event loop to exit even if the worker is active.
+
+```javascript
+worker.unref();
+```
+
+#### Events
+
+##### message
+
+Emitted when the worker sends a message via `parentPort.postMessage()`.
+
+```javascript
+worker.on('message', (message) => {
+  console.log('Received from worker:', message);
+});
+```
+
+##### exit
+
+Emitted when the worker exits.
+
+```javascript
+worker.on('exit', (exitCode) => {
+  console.log('Worker exited with code:', exitCode);
+});
+```
+
+### MessageChannel
+
+Creates a pair of connected MessagePort objects for bidirectional communication.
+
+#### Constructor
+
+```javascript
+const { port1, port2 } = new MessageChannel();
+```
+
+<ResponseField name="port1" type="MessagePort">
+  First port of the channel
+</ResponseField>
+
+<ResponseField name="port2" type="MessagePort">
+  Second port of the channel
+</ResponseField>
+
+### MessagePort
+
+A MessagePort represents one end of a MessageChannel for communication.
+
+#### Methods
+
+##### postMessage()
+
+Sends a message through the port.
+
+```javascript
+port.postMessage(value);
+```
+
+<ParamField path="value" type="any" required>
+  Message to send
+</ParamField>
+
+##### on()
+
+Adds a message event listener.
+
+```javascript
+port.on('message', (message) => {
+  console.log('Received:', message);
+});
+```
+
+##### once()
+
+Adds a one-time message event listener.
+
+```javascript
+port.once('message', (message) => {
+  console.log('Received once:', message);
+});
+```
+
+##### start()
+
+Starts receiving messages on the port.
+
+```javascript
+port.start();
+```
+
+##### close()
+
+Closes the port and stops receiving messages.
+
+```javascript
+port.close();
+```
+
+##### ref() / unref()
+
+Controls whether the port keeps the event loop alive.
+
+```javascript
+port.ref();
+port.unref();
+```
+
+#### Properties
+
+<ResponseField name="onmessage" type="function | undefined">
+  Direct message handler (alternative to using on('message'))
+</ResponseField>
+
+## Module Properties
+
+<ResponseField name="isMainThread" type="boolean">
+  True if code is running in the main thread, false if in a worker
+</ResponseField>
+
+<ResponseField name="threadId" type="number">
+  Numeric identifier for the current thread (0 for main thread)
+</ResponseField>
+
+<ResponseField name="parentPort" type="MessagePort | null">
+  A MessagePort for communicating with the parent thread (null in main thread)
+</ResponseField>
+
+<ResponseField name="workerData" type="any">
+  Data passed from the parent thread via workerData option
+</ResponseField>
+
+<ResponseField name="SHARE_ENV" type="symbol">
+  Symbol for sharing environment variables (Node.js compatibility)
+</ResponseField>
+
+## Functions
+
+### setEnvironmentData()
+
+Sets shared environment data that will be passed to new workers.
+
+```javascript
+setEnvironmentData(key, value);
+```
+
+<ParamField path="key" type="any" required>
+  Environment data key (must be JSON-serializable)
+</ParamField>
+
+<ParamField path="value" type="any" required>
+  Environment data value (must be JSON-serializable)
+</ParamField>
+
+### getEnvironmentData()
+
+Retrieves shared environment data.
+
+```javascript
+const value = getEnvironmentData(key);
+```
+
+<ParamField path="key" type="any" required>
+  Environment data key
+</ParamField>
+
+<ResponseField name="return" type="any">
+  The stored value, or undefined if not found
+</ResponseField>
+
+### receiveMessageOnPort()
+
+Synchronously receives a message from a MessagePort.
+
+```javascript
+const message = receiveMessageOnPort(port);
+```
+
+<ParamField path="port" type="MessagePort" required>
+  The port to receive from
+</ParamField>
+
+<ResponseField name="return" type="object | undefined">
+  Object with `message` property, or undefined if no message available
+</ResponseField>
+
+### markAsUntransferable()
+
+Marks an object as untransferable (Node.js compatibility).
+
+```javascript
+markAsUntransferable(object);
+```
+
+<ParamField path="object" type="any" required>
+  Object to mark
+</ParamField>
+
+### moveMessagePortToContext()
+
+Moves a MessagePort to another context (Node.js compatibility).
+
+```javascript
+const movedPort = moveMessagePortToContext(port, context);
+```
+
+## Examples
+
+### Basic Worker
+
+**main.js:**
+```javascript
+import { Worker } from 'ant:worker_threads';
+
+const worker = new Worker('./worker.js');
+
+worker.on('message', (message) => {
+  console.log('Worker said:', message);
+});
+
+worker.on('exit', (code) => {
+  console.log('Worker exited with code:', code);
+});
+```
+
+**worker.js:**
+```javascript
+import { parentPort } from 'ant:worker_threads';
+
+parentPort.postMessage('Hello from worker!');
+parentPort.postMessage({ result: 42 });
+```
+
+### Worker with Data
+
+**main.js:**
+```javascript
+import { Worker } from 'ant:worker_threads';
+
+const worker = new Worker('./compute.js', {
+  workerData: {
+    numbers: [1, 2, 3, 4, 5],
+    operation: 'sum'
+  }
+});
+
+worker.on('message', (result) => {
+  console.log('Result:', result);
+});
+```
+
+**compute.js:**
+```javascript
+import { parentPort, workerData } from 'ant:worker_threads';
+
+const { numbers, operation } = workerData;
+
+let result;
+if (operation === 'sum') {
+  result = numbers.reduce((a, b) => a + b, 0);
+} else if (operation === 'product') {
+  result = numbers.reduce((a, b) => a * b, 1);
+}
+
+parentPort.postMessage(result);
+```
+
+### Parallel Processing
+
+```javascript
+import { Worker } from 'ant:worker_threads';
+
+function runWorker(data) {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker('./processor.js', {
+      workerData: data
+    });
+    
+    worker.on('message', resolve);
+    worker.on('exit', (code) => {
+      if (code !== 0) {
+        reject(new Error(`Worker stopped with exit code ${code}`));
+      }
+    });
+  });
+}
+
+async function processInParallel(items) {
+  const chunks = [
+    items.slice(0, items.length / 2),
+    items.slice(items.length / 2)
+  ];
+  
+  const results = await Promise.all(
+    chunks.map(chunk => runWorker({ items: chunk }))
+  );
+  
+  return results.flat();
+}
+
+const items = Array.from({ length: 100 }, (_, i) => i);
+const processed = await processInParallel(items);
+console.log('Processed:', processed.length, 'items');
+```
+
+### MessageChannel Communication
+
+```javascript
+import { MessageChannel } from 'ant:worker_threads';
+
+const { port1, port2 } = new MessageChannel();
+
+// Receiver
+port2.on('message', (msg) => {
+  console.log('Port2 received:', msg);
+  port2.postMessage({ echo: msg });
+});
+
+port2.start();
+
+// Sender
+port1.on('message', (msg) => {
+  console.log('Port1 received:', msg);
+});
+
+port1.start();
+port1.postMessage('Hello!');
+```
+
+### Environment Data Sharing
+
+**main.js:**
+```javascript
+import { Worker, setEnvironmentData } from 'ant:worker_threads';
+
+// Set shared configuration
+setEnvironmentData('config', {
+  apiKey: 'secret123',
+  endpoint: 'https://api.example.com'
+});
+
+setEnvironmentData('version', '1.0.0');
+
+const worker = new Worker('./task.js');
+
+worker.on('message', (msg) => {
+  console.log('Worker result:', msg);
+});
+```
+
+**task.js:**
+```javascript
+import { parentPort, getEnvironmentData } from 'ant:worker_threads';
+
+const config = getEnvironmentData('config');
+const version = getEnvironmentData('version');
+
+console.log('Config:', config);
+console.log('Version:', version);
+
+parentPort.postMessage({
+  status: 'initialized',
+  version
+});
+```
+
+### Worker Pool
+
+```javascript
+import { Worker } from 'ant:worker_threads';
+
+class WorkerPool {
+  constructor(workerScript, poolSize = 4) {
+    this.workerScript = workerScript;
+    this.poolSize = poolSize;
+    this.workers = [];
+    this.queue = [];
+    this.activeWorkers = 0;
+    
+    this.initialize();
+  }
+  
+  initialize() {
+    for (let i = 0; i < this.poolSize; i++) {
+      const worker = new Worker(this.workerScript);
+      worker.available = true;
+      this.workers.push(worker);
+    }
+  }
+  
+  async exec(data) {
+    return new Promise((resolve, reject) => {
+      const task = { data, resolve, reject };
+      this.queue.push(task);
+      this.processQueue();
+    });
+  }
+  
+  processQueue() {
+    if (this.queue.length === 0) return;
+    
+    const availableWorker = this.workers.find(w => w.available);
+    if (!availableWorker) return;
+    
+    const task = this.queue.shift();
+    availableWorker.available = false;
+    this.activeWorkers++;
+    
+    const worker = new Worker(this.workerScript, {
+      workerData: task.data
+    });
+    
+    worker.on('message', (result) => {
+      task.resolve(result);
+      availableWorker.available = true;
+      this.activeWorkers--;
+      this.processQueue();
+    });
+    
+    worker.on('exit', (code) => {
+      if (code !== 0) {
+        task.reject(new Error(`Worker exited with code ${code}`));
+      }
+      availableWorker.available = true;
+      this.activeWorkers--;
+      this.processQueue();
+    });
+  }
+  
+  async close() {
+    // Wait for active tasks to complete
+    while (this.activeWorkers > 0) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+  }
+}
+
+// Usage
+const pool = new WorkerPool('./worker.js', 4);
+
+const tasks = Array.from({ length: 20 }, (_, i) => 
+  pool.exec({ taskId: i, value: i * 2 })
+);
+
+const results = await Promise.all(tasks);
+console.log('All tasks completed:', results);
+
+await pool.close();
+```
+
+### Graceful Worker Termination
+
+```javascript
+import { Worker } from 'ant:worker_threads';
+
+const worker = new Worker('./long-task.js', {
+  workerData: { iterations: 1000000 }
+});
+
+let completed = false;
+
+worker.on('message', (msg) => {
+  if (msg.type === 'progress') {
+    console.log('Progress:', msg.percent + '%');
+  } else if (msg.type === 'complete') {
+    completed = true;
+    console.log('Task completed:', msg.result);
+  }
+});
+
+worker.on('exit', (code) => {
+  if (!completed) {
+    console.log('Worker terminated before completion');
+  }
+  console.log('Exit code:', code);
+});
+
+// Terminate after 5 seconds if not done
+setTimeout(async () => {
+  if (!completed) {
+    console.log('Terminating worker...');
+    const exitCode = await worker.terminate();
+    console.log('Worker terminated with code:', exitCode);
+  }
+}, 5000);
+```
+
+### Check Thread Context
+
+```javascript
+import { isMainThread, parentPort, workerData } from 'ant:worker_threads';
+
+if (isMainThread) {
+  console.log('Running in main thread');
+  
+  const { Worker } = await import('ant:worker_threads');
+  const worker = new Worker('./script.js', {
+    workerData: { message: 'Hello' }
+  });
+  
+  worker.on('message', console.log);
+} else {
+  console.log('Running in worker thread');
+  console.log('Worker data:', workerData);
+  
+  parentPort.postMessage({
+    received: workerData.message,
+    response: 'Hi from worker'
+  });
+}
+```
+
+## Implementation Notes
+
+- Workers run in separate processes using `uv_spawn`
+- Communication happens via stdout with the prefix `ANT_WT_MSG:`
+- All messages must be JSON-serializable
+- Workers inherit environment variables from the parent
+- Environment data is passed via `ANT_WORKER_ENV_DATA_JSON` environment variable
+- Worker detection uses `ANT_WORKER_THREADS_MODE=1` environment variable
+- The `postMessage()` method on Worker instances is not yet fully implemented
+- Workers are automatically cleaned up when they exit

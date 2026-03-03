@@ -1,0 +1,310 @@
+---
+title: Runtime Management
+description: Create, configure, and destroy Ant JavaScript runtime instances
+---
+
+The Ant C API provides functions for creating and managing JavaScript runtime instances.
+
+## Runtime Creation
+
+### js_create
+
+Creates a new JavaScript runtime with a fixed-size memory buffer.
+
+```c
+ant_t *js_create(void *buf, size_t len);
+```
+
+<ParamField path="buf" type="void*" required>
+  Pointer to a pre-allocated memory buffer for the runtime.
+</ParamField>
+
+<ParamField path="len" type="size_t" required>
+  Size of the memory buffer in bytes.
+</ParamField>
+
+**Returns:** Pointer to the created runtime, or `NULL` on failure.
+
+### js_create_dynamic
+
+Creates a new JavaScript runtime with dynamic memory allocation.
+
+```c
+ant_t *js_create_dynamic(void);
+```
+
+**Returns:** Pointer to the created runtime, or `NULL` on failure.
+
+### Example
+
+```c
+#include <ant.h>
+#include <stdlib.h>
+
+int main(void) {
+  // Create runtime with dynamic allocation
+  ant_t *js = js_create_dynamic();
+  if (!js) {
+    fprintf(stderr, "Failed to create JS runtime\n");
+    return 1;
+  }
+  
+  // Configure stack
+  volatile char stack_base;
+  js_setstackbase(js, (void *)&stack_base);
+  
+  // Initialize runtime
+  char *argv[] = { "myapp", NULL };
+  ant_runtime_init(js, 1, argv, NULL);
+  
+  // Use runtime...
+  
+  // Cleanup
+  js_destroy(js);
+  return 0;
+}
+```
+
+## Stack Configuration
+
+### js_setstackbase
+
+Sets the base of the C stack for stack overflow detection.
+
+```c
+void js_setstackbase(ant_t *js, void *base);
+```
+
+<ParamField path="js" type="ant_t*" required>
+  The runtime instance.
+</ParamField>
+
+<ParamField path="base" type="void*" required>
+  Pointer to the stack base (typically a local variable's address).
+</ParamField>
+
+### js_setstacklimit
+
+Sets the maximum allowed stack size.
+
+```c
+void js_setstacklimit(ant_t *js, size_t limit);
+```
+
+<ParamField path="js" type="ant_t*" required>
+  The runtime instance.
+</ParamField>
+
+<ParamField path="limit" type="size_t" required>
+  Maximum stack size in bytes.
+</ParamField>
+
+### Example
+
+```c
+volatile char stack_base;
+ant_t *js = js_create_dynamic();
+
+// Set stack base for overflow detection
+js_setstackbase(js, (void *)&stack_base);
+
+// Set 1MB stack limit
+js_setstacklimit(js, 1024 * 1024);
+```
+
+## Runtime Destruction
+
+### js_destroy
+
+Destroys a runtime instance and frees all associated memory.
+
+```c
+void js_destroy(ant_t *js);
+```
+
+<ParamField path="js" type="ant_t*" required>
+  The runtime instance to destroy.
+</ParamField>
+
+```c
+ant_t *js = js_create_dynamic();
+// Use runtime...
+js_destroy(js);
+```
+
+## Code Evaluation
+
+### js_eval_bytecode
+
+Evaluates bytecode as a script.
+
+```c
+jsval_t js_eval_bytecode(ant_t *js, const char *code, size_t len);
+```
+
+<ParamField path="js" type="ant_t*" required>
+  The runtime instance.
+</ParamField>
+
+<ParamField path="code" type="const char*" required>
+  Pointer to the bytecode.
+</ParamField>
+
+<ParamField path="len" type="size_t" required>
+  Length of the bytecode in bytes.
+</ParamField>
+
+**Returns:** The result value, or an error value on failure.
+
+### js_eval_bytecode_eval
+
+Evaluates bytecode in eval mode.
+
+```c
+jsval_t js_eval_bytecode_eval(ant_t *js, const char *code, size_t len);
+```
+
+### js_eval_bytecode_module
+
+Evaluates bytecode as an ES module.
+
+```c
+jsval_t js_eval_bytecode_module(ant_t *js, const char *code, size_t len);
+```
+
+### js_eval_bytecode_repl
+
+Evaluates bytecode in REPL mode.
+
+```c
+jsval_t js_eval_bytecode_repl(ant_t *js, const char *code, size_t len);
+```
+
+### Example
+
+```c
+const char *code = "1 + 2 * 3";
+jsval_t result = js_eval_bytecode_eval(js, code, strlen(code));
+
+if (vtype(result) == T_NUM) {
+  printf("Result: %g\n", js_getnum(result));
+} else if (vtype(result) == T_ERR) {
+  printf("Error: %s\n", js_str(js, result));
+}
+```
+
+## Utility Functions
+
+### js_glob
+
+Returns the global object.
+
+```c
+jsval_t js_glob(ant_t *js);
+```
+
+**Returns:** The global object value.
+
+```c
+jsval_t global = js_glob(js);
+js_set(js, global, "myFunction", js_mkfun(my_c_function));
+```
+
+### js_set_filename
+
+Sets the current filename for error reporting.
+
+```c
+void js_set_filename(ant_t *js, const char *filename);
+```
+
+<ParamField path="js" type="ant_t*" required>
+  The runtime instance.
+</ParamField>
+
+<ParamField path="filename" type="const char*" required>
+  The filename to use in error messages.
+</ParamField>
+
+```c
+js_set_filename(js, "script.js");
+```
+
+### js_stats
+
+Retrieves memory and stack statistics.
+
+```c
+void js_stats(ant_t *js, size_t *total, size_t *min, size_t *cstacksize);
+```
+
+<ParamField path="js" type="ant_t*" required>
+  The runtime instance.
+</ParamField>
+
+<ParamField path="total" type="size_t*">
+  Output: Total memory used.
+</ParamField>
+
+<ParamField path="min" type="size_t*">
+  Output: Minimum free memory.
+</ParamField>
+
+<ParamField path="cstacksize" type="size_t*">
+  Output: Current C stack size.
+</ParamField>
+
+```c
+size_t total, min, stack;
+js_stats(js, &total, &min, &stack);
+printf("Memory: %zu bytes, Stack: %zu bytes\n", total, stack);
+```
+
+### js_getbrk
+
+Returns the current memory break point (end of allocated memory).
+
+```c
+size_t js_getbrk(ant_t *js);
+```
+
+**Returns:** The current break point offset.
+
+## Complete Example
+
+```c
+#include <ant.h>
+#include <stdio.h>
+#include <string.h>
+
+int main(void) {
+  // Setup stack base
+  volatile char stack_base;
+  
+  // Create runtime
+  ant_t *js = js_create_dynamic();
+  if (!js) {
+    fprintf(stderr, "Failed to create runtime\n");
+    return 1;
+  }
+  
+  // Configure
+  js_setstackbase(js, (void *)&stack_base);
+  
+  // Initialize
+  char *argv[] = { "myapp", NULL };
+  ant_runtime_init(js, 1, argv, NULL);
+  
+  // Evaluate code
+  const char *code = "Math.sqrt(144)";
+  jsval_t result = js_eval_bytecode_eval(js, code, strlen(code));
+  
+  if (vtype(result) == T_NUM) {
+    printf("Result: %g\n", js_getnum(result));
+  }
+  
+  // Cleanup
+  js_destroy(js);
+  return 0;
+}
+```

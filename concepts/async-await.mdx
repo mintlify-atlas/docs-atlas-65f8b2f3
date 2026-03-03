@@ -1,0 +1,584 @@
+---
+title: Async/await support and promises
+description: Master asynchronous programming in Ant with async/await, promises, and error handling
+---
+
+Ant provides full support for modern asynchronous JavaScript, including async/await syntax, Promises, and microtasks. The implementation uses coroutines for efficient async execution without blocking the event loop.
+
+## Promises
+
+Promises represent the eventual completion or failure of an async operation:
+
+```javascript
+// Creating a promise
+const promise = new Promise((resolve, reject) => {
+  setTimeout(() => {
+    resolve('Success!');
+  }, 1000);
+});
+
+// Using the promise
+promise.then(result => {
+  console.log(result);  // 'Success!'
+});
+```
+
+### Promise states
+
+A Promise is in one of three states:
+
+- **Pending**: Initial state, neither fulfilled nor rejected
+- **Fulfilled**: Operation completed successfully
+- **Rejected**: Operation failed
+
+```javascript
+// Fulfilled promise
+const fulfilled = Promise.resolve('value');
+
+// Rejected promise
+const rejected = Promise.reject(new Error('failed'));
+```
+
+### Promise chaining
+
+Chain promises to handle sequential async operations:
+
+```javascript
+fetch('/api/user')
+  .then(response => response.json())
+  .then(user => fetch(`/api/posts?user=${user.id}`))
+  .then(response => response.json())
+  .then(posts => {
+    console.log('User posts:', posts);
+  })
+  .catch(error => {
+    console.error('Error:', error);
+  });
+```
+
+## Async/await syntax
+
+Async/await provides a cleaner syntax for working with promises:
+
+```javascript
+// Async function declaration
+async function fetchUserData() {
+  const response = await fetch('/api/user');
+  const user = await response.json();
+  return user;
+}
+
+// Async arrow function
+const getUser = async (id) => {
+  const response = await fetch(`/api/user/${id}`);
+  return response.json();
+};
+
+// Async method
+class UserService {
+  async getUser(id) {
+    return await fetch(`/api/user/${id}`).then(r => r.json());
+  }
+}
+```
+
+### Await expressions
+
+The `await` keyword pauses execution until the promise resolves:
+
+```javascript
+async function example() {
+  // Await a promise
+  const result = await Promise.resolve(42);
+  console.log(result);  // 42
+  
+  // Await any thenable
+  const value = await {
+    then(resolve) { resolve('custom'); }
+  };
+  console.log(value);  // 'custom'
+  
+  // Await non-promise values (wrapped automatically)
+  const immediate = await 123;
+  console.log(immediate);  // 123
+}
+```
+
+## Coroutine implementation
+
+Ant implements async/await using coroutines (powered by minicoro):
+
+```c
+// From reactor.c - coroutine structure
+typedef struct coroutine {
+  mco_coro *mco;           // Coroutine handle
+  bool is_ready;           // Ready to resume
+  struct coroutine *next;  // Linked list
+} coroutine_t;
+```
+
+### Async function lifecycle
+
+1. **Creation**: Async function call creates a coroutine
+2. **Execution**: Function runs until first `await`
+3. **Suspension**: Coroutine suspends at `await`
+4. **Resumption**: When promise resolves, coroutine resumes
+5. **Completion**: Function returns, coroutine is freed
+
+```c
+// From reactor.c - coroutine resumption
+for (coroutine_t *c = pending_coroutines.head; c; c = c->next) {
+  if (c->is_ready && mco_status(c->mco) == MCO_SUSPENDED) {
+    MCO_RESUME_SAVE(js, c->mco, res);
+    
+    if (mco_status(c->mco) == MCO_DEAD) {
+      remove_coroutine(c);
+      free_coroutine(c);
+    }
+  }
+}
+```
+
+## Error handling
+
+### Try/catch with async/await
+
+```javascript
+async function fetchWithErrorHandling() {
+  try {
+    const response = await fetch('/api/data');
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Fetch failed:', error.message);
+    return null;
+  }
+}
+```
+
+### Promise error handling
+
+```javascript
+// .catch() method
+fetch('/api/data')
+  .then(r => r.json())
+  .catch(error => {
+    console.error('Error:', error);
+  });
+
+// .finally() for cleanup
+fetch('/api/data')
+  .then(r => r.json())
+  .catch(error => console.error(error))
+  .finally(() => {
+    console.log('Request completed');
+  });
+```
+
+### Unhandled rejections
+
+```javascript
+// ❌ Bad: unhandled rejection
+Promise.reject('error');  // Warning: unhandled rejection
+
+// ✅ Good: handle all rejections
+Promise.reject('error').catch(err => console.error(err));
+
+// ✅ Good: async/await with try/catch
+async function safe() {
+  try {
+    await riskyOperation();
+  } catch (err) {
+    console.error(err);
+  }
+}
+```
+
+## Concurrent operations
+
+### Promise.all
+
+Wait for multiple promises to resolve:
+
+```javascript
+// Run requests concurrently
+const [users, posts, comments] = await Promise.all([
+  fetch('/api/users').then(r => r.json()),
+  fetch('/api/posts').then(r => r.json()),
+  fetch('/api/comments').then(r => r.json())
+]);
+
+console.log(users, posts, comments);
+```
+
+<Info>
+Promise.all fails fast - if any promise rejects, the entire operation fails immediately.
+</Info>
+
+### Promise.allSettled
+
+Wait for all promises to settle (resolve or reject):
+
+```javascript
+const results = await Promise.allSettled([
+  fetch('/api/endpoint1'),
+  fetch('/api/endpoint2'),
+  fetch('/api/endpoint3')
+]);
+
+results.forEach(result => {
+  if (result.status === 'fulfilled') {
+    console.log('Success:', result.value);
+  } else {
+    console.error('Failed:', result.reason);
+  }
+});
+```
+
+### Promise.race
+
+Resolve with the first promise to settle:
+
+```javascript
+// Timeout pattern
+const timeout = new Promise((_, reject) => 
+  setTimeout(() => reject(new Error('Timeout')), 5000)
+);
+
+const data = await Promise.race([
+  fetch('/api/data'),
+  timeout
+]);
+```
+
+### Promise.any
+
+Resolve with the first fulfilled promise:
+
+```javascript
+// Try multiple endpoints
+const data = await Promise.any([
+  fetch('https://api1.example.com/data'),
+  fetch('https://api2.example.com/data'),
+  fetch('https://api3.example.com/data')
+]);
+```
+
+## Real-world examples
+
+### Fetching data with async/await
+
+```javascript
+// From examples/demo/fetch.js
+const fetchJson = (url, options) => 
+  fetch(url, options).then(r => r.json());
+
+const test_get = async () => {
+  const { ip } = await fetchJson('https://ifconfig.co/json');
+  console.log(ip);
+};
+
+const test_post = async () => {
+  const { json, headers } = await fetchJson('https://httpbingo.org/post', {
+    method: 'POST',
+    body: JSON.stringify({ runtime: 'ant' }),
+    headers: {
+      'Content-Type': 'application/json',
+      'User-Agent': 'ant/alpha (ant)'
+    }
+  });
+  console.log(`${JSON.stringify(json)}\n${JSON.stringify(headers)}`);
+};
+
+// Run multiple requests concurrently
+Promise.all([test_get(), test_post()]);
+```
+
+### Sequential vs parallel execution
+
+```javascript
+// ❌ Sequential (slow): 3 seconds total
+async function sequential() {
+  const a = await delay(1000);  // Wait 1s
+  const b = await delay(1000);  // Wait 1s
+  const c = await delay(1000);  // Wait 1s
+  return [a, b, c];
+}
+
+// ✅ Parallel (fast): 1 second total
+async function parallel() {
+  const [a, b, c] = await Promise.all([
+    delay(1000),  // All start together
+    delay(1000),
+    delay(1000)
+  ]);
+  return [a, b, c];
+}
+```
+
+### Async iteration
+
+```javascript
+// Process items sequentially
+async function processSequential(items) {
+  for (const item of items) {
+    await processItem(item);
+  }
+}
+
+// Process items concurrently
+async function processConcurrent(items) {
+  await Promise.all(
+    items.map(item => processItem(item))
+  );
+}
+
+// Process with concurrency limit
+async function processWithLimit(items, limit) {
+  const results = [];
+  
+  for (let i = 0; i < items.length; i += limit) {
+    const batch = items.slice(i, i + limit);
+    const batchResults = await Promise.all(
+      batch.map(item => processItem(item))
+    );
+    results.push(...batchResults);
+  }
+  
+  return results;
+}
+```
+
+## Microtasks and timing
+
+Promise callbacks run as microtasks, which execute before the next event loop iteration:
+
+```javascript
+console.log('1: Synchronous');
+
+setTimeout(() => {
+  console.log('4: Timeout');
+}, 0);
+
+Promise.resolve().then(() => {
+  console.log('3: Promise microtask');
+});
+
+queueMicrotask(() => {
+  console.log('3: Microtask');
+});
+
+console.log('2: Synchronous');
+
+// Output:
+// 1: Synchronous
+// 2: Synchronous
+// 3: Promise microtask
+// 3: Microtask
+// 4: Timeout
+```
+
+## Comprehensive async/await test
+
+```javascript
+// From examples/spec/async.js
+async function basicAsync() {
+  return 42;
+}
+
+const result = await basicAsync();  // 42
+
+// Arrow functions
+const arrowAsync = async () => 'arrow result';
+const value = await arrowAsync();  // 'arrow result'
+
+// Single parameter
+const singleParam = async x => x * 2;
+const doubled = await singleParam(21);  // 42
+
+// Multiple parameters
+const multiParam = async (a, b) => a + b;
+const sum = await multiParam(10, 32);  // 42
+
+// Await in expressions
+async function awaiter() {
+  const a = await Promise.resolve(1);
+  const b = await Promise.resolve(2);
+  return a + b;
+}
+const total = await awaiter();  // 3
+
+// Await in loops
+async function awaitLoop() {
+  let sum = 0;
+  for (let i = 0; i < 3; i++) {
+    sum += await Promise.resolve(i);
+  }
+  return sum;
+}
+const loopResult = await awaitLoop();  // 3
+```
+
+## Best practices
+
+<AccordionGroup>
+  <Accordion title="Always handle errors">
+    Use try/catch or .catch() to handle errors:
+    
+    ```javascript
+    // ✅ Good: error handling
+    async function safe() {
+      try {
+        return await riskyOperation();
+      } catch (error) {
+        console.error('Operation failed:', error);
+        return null;
+      }
+    }
+    
+    // ❌ Bad: unhandled errors
+    async function unsafe() {
+      return await riskyOperation();  // May throw
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Avoid unnecessary await">
+    Don't await if you're just returning:
+    
+    ```javascript
+    // ✅ Good: return promise directly
+    async function fetchData() {
+      return fetch('/api/data');
+    }
+    
+    // ❌ Unnecessary: extra await
+    async function fetchData() {
+      return await fetch('/api/data');
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Run independent operations in parallel">
+    Use Promise.all for concurrent operations:
+    
+    ```javascript
+    // ✅ Good: parallel (faster)
+    const [a, b] = await Promise.all([
+      fetchA(),
+      fetchB()
+    ]);
+    
+    // ❌ Bad: sequential (slower)
+    const a = await fetchA();
+    const b = await fetchB();
+    ```
+  </Accordion>
+
+  <Accordion title="Use async/await over raw promises">
+    Async/await is more readable than promise chains:
+    
+    ```javascript
+    // ✅ Good: async/await (clear)
+    async function getUser(id) {
+      const user = await fetch(`/api/user/${id}`);
+      const posts = await fetch(`/api/posts?user=${id}`);
+      return { user, posts };
+    }
+    
+    // ❌ Harder to read: promise chains
+    function getUser(id) {
+      return fetch(`/api/user/${id}`)
+        .then(user => 
+          fetch(`/api/posts?user=${id}`)
+            .then(posts => ({ user, posts }))
+        );
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Common patterns
+
+### Retry with exponential backoff
+
+```javascript
+async function retry(fn, maxRetries = 3, delay = 1000) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (i === maxRetries - 1) throw error;
+      await new Promise(r => setTimeout(r, delay * Math.pow(2, i)));
+    }
+  }
+}
+
+// Usage
+const data = await retry(() => fetch('/api/data'));
+```
+
+### Timeout wrapper
+
+```javascript
+function withTimeout(promise, ms) {
+  const timeout = new Promise((_, reject) => 
+    setTimeout(() => reject(new Error('Timeout')), ms)
+  );
+  return Promise.race([promise, timeout]);
+}
+
+// Usage
+const data = await withTimeout(
+  fetch('/api/data'),
+  5000  // 5 second timeout
+);
+```
+
+### Async queue
+
+```javascript
+class AsyncQueue {
+  constructor() {
+    this.queue = [];
+    this.processing = false;
+  }
+  
+  async add(task) {
+    this.queue.push(task);
+    if (!this.processing) {
+      this.processing = true;
+      while (this.queue.length > 0) {
+        const task = this.queue.shift();
+        await task();
+      }
+      this.processing = false;
+    }
+  }
+}
+
+// Usage
+const queue = new AsyncQueue();
+queue.add(async () => await processTask1());
+queue.add(async () => await processTask2());
+```
+
+<Tip>
+Use `Promise.allSettled()` when you need results from all promises, even if some fail. Use `Promise.all()` when you need all promises to succeed.
+</Tip>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Event loop" icon="arrows-rotate" href="/concepts/event-loop">
+    Understand how async operations work
+  </Card>
+  <Card title="Module system" icon="boxes-stacked" href="/concepts/modules">
+    Learn about importing and using modules
+  </Card>
+</CardGroup>

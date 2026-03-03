@@ -1,0 +1,100 @@
+---
+title: Building on Windows
+description: Complete build instructions for Ant on Windows using MSYS2 MINGW64
+---
+
+Ant on Windows is built using the MSYS2 MINGW64 toolchain.
+
+<Warning>
+  Native MSVC builds are not currently supported. You must use the MSYS2 MINGW64 environment.
+</Warning>
+
+## Prerequisites
+
+<Steps>
+  <Step title="Install MSYS2">
+    Download and install [MSYS2](https://www.msys2.org/)
+  </Step>
+  
+  <Step title="Install dependencies">
+    Open the **MINGW64** shell and install dependencies:
+    
+    ```bash
+    pacman -S mingw-w64-x86_64-toolchain mingw-w64-x86_64-meson \
+      mingw-w64-x86_64-ninja mingw-w64-x86_64-cmake \
+      mingw-w64-x86_64-openssl mingw-w64-x86_64-libsodium \
+      mingw-w64-x86_64-lld mingw-w64-x86_64-nodejs git
+    ```
+  </Step>
+  
+  <Step title="Install Rust">
+    Install Rust via [rustup](https://rustup.rs/) (select the `x86_64-pc-windows-gnu` target)
+  </Step>
+  
+  <Step title="Install Zig">
+    Install [Zig](https://ziglang.org/download/) >= 0.15
+  </Step>
+</Steps>
+
+## Building Ant
+
+From the MSYS2 MINGW64 shell:
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/theMackabu/ant.git
+    cd ant
+    ```
+  </Step>
+  
+  <Step title="Download subprojects">
+    ```bash
+    meson subprojects download
+    ```
+  </Step>
+  
+  <Step title="Configure the build">
+    ```bash
+    meson setup build -Dc_std=gnu2x
+    ```
+    
+    <Note>
+      Windows builds use `-Dc_std=gnu2x` instead of `gnu23` due to MinGW toolchain compatibility.
+    </Note>
+  </Step>
+  
+  <Step title="Compile">
+    ```bash
+    meson compile -C build
+    ```
+  </Step>
+</Steps>
+
+## Verifying the Build
+
+To verify:
+
+```bash
+./build/ant.exe --version
+```
+
+## Required DLLs
+
+<Warning>
+  Windows builds require bundling the following DLLs alongside `ant.exe`:
+  
+  - `libssl-3-x64.dll`
+  - `libcrypto-3-x64.dll`
+  - `libsodium-26.dll`
+  
+  These are found in the MSYS2 MINGW64 bin directory (`/mingw64/bin/` or equivalent).
+</Warning>
+
+You can copy these DLLs to the same directory as `ant.exe`:
+
+```bash
+cp /mingw64/bin/libssl-3-x64.dll ./build/
+cp /mingw64/bin/libcrypto-3-x64.dll ./build/
+cp /mingw64/bin/libsodium-26.dll ./build/
+```

@@ -1,0 +1,443 @@
+---
+title: Foreign Function Interface
+description: Call C libraries directly from JavaScript using FFI
+---
+
+## Overview
+
+The `ant:ffi` module provides a Foreign Function Interface (FFI) for calling C libraries from JavaScript. Load shared libraries, define functions, and interact with native code without writing C bindings.
+
+## Importing
+
+```javascript
+import { 
+  dlopen, 
+  FFIType,
+  alloc,
+  free,
+  read,
+  write,
+  pointer,
+  callback,
+  freeCallback,
+  readPtr,
+  suffix 
+} from 'ant:ffi';
+```
+
+## Loading Libraries
+
+### Platform-Specific Extension
+
+```javascript
+// suffix is 'dylib' on macOS, 'so' on Linux, 'dll' on Windows
+const lib = dlopen(`libexample.${suffix}`);
+```
+
+### Load System Libraries
+
+```javascript
+// Load SQLite
+const sqlite3 = dlopen(`libsqlite3.${suffix}`);
+
+// Load system math library
+const libm = dlopen(`libm.${suffix}`);
+
+// Load with full path
+const custom = dlopen('/usr/local/lib/libcustom.so');
+```
+
+## Defining Functions
+
+### Basic Function Definition
+
+```javascript
+const sqlite3 = dlopen(`libsqlite3.${suffix}`);
+
+// Define a function that returns a string
+sqlite3.define('sqlite3_libversion', {
+  args: [],                    // No arguments
+  returns: FFIType.string      // Returns string
+});
+
+const version = sqlite3.call('sqlite3_libversion');
+console.log(`SQLite version: ${version}`);
+```
+
+### With Arguments
+
+```javascript
+// Define sqlite3_open(filename, **ppDb)
+sqlite3.define('sqlite3_open', {
+  args: [FFIType.string, FFIType.pointer],
+  returns: FFIType.int
+});
+
+// Define sqlite3_close(db)
+sqlite3.define('sqlite3_close', {
+  args: [FFIType.pointer],
+  returns: FFIType.int
+});
+```
+
+## FFI Types
+
+Available types in `FFIType`:
+
+- `void` - No return value
+- `int8` - 8-bit signed integer
+- `int16` - 16-bit signed integer
+- `int` - 32-bit signed integer
+- `int64` - 64-bit signed integer
+- `uint8` - 8-bit unsigned integer
+- `uint16` - 16-bit unsigned integer
+- `uint64` - 64-bit unsigned integer
+- `float` - 32-bit floating point
+- `double` - 64-bit floating point
+- `pointer` - Memory pointer
+- `string` - C string (char*)
+- `spread` ("...") - Variadic arguments
+
+## Calling Functions
+
+### Direct Call
+
+```javascript
+const result = sqlite3.call('sqlite3_open', ':memory:', dbPtrPtr);
+```
+
+### After Definition
+
+```javascript
+// Define once
+sqlite3.define('sqlite3_libversion', {
+  args: [],
+  returns: FFIType.string
+});
+
+// Call multiple times
+const v1 = sqlite3.call('sqlite3_libversion');
+const v2 = sqlite3.call('sqlite3_libversion');
+```
+
+## Memory Management
+
+### Allocate Memory
+
+```javascript
+// Allocate 8 bytes for a pointer
+const dbPtrPtr = alloc(8);
+
+// Allocate buffer
+const buffer = alloc(1024);
+```
+
+### Free Memory
+
+```javascript
+free(dbPtrPtr);
+free(buffer);
+```
+
+### Read Memory
+
+```javascript
+// Read pointer value
+const db = read(dbPtrPtr, FFIType.pointer);
+
+// Read integer
+const value = read(ptr, FFIType.int);
+
+// Read string
+const str = read(strPtr, FFIType.string);
+```
+
+### Write Memory
+
+```javascript
+// Write integer
+write(ptr, FFIType.int, 42);
+
+// Write pointer
+write(ptrPtr, FFIType.pointer, addr);
+
+// Write string pointer
+write(strPtr, FFIType.string, 'hello');
+```
+
+### Read from Raw Pointer
+
+```javascript
+// Read without allocating
+const str = readPtr(address, FFIType.string);
+const value = readPtr(address, FFIType.int);
+```
+
+## Complete SQLite Example
+
+From the Ant repository:
+
+```javascript
+import { sqlite3 } from './sqlite3';
+import { 
+  alloc, free, read, 
+  callback, freeCallback, readPtr, 
+  FFIType 
+} from 'ant:ffi';
+
+// Open database
+const dbPtrPtr = alloc(8);
+const result = sqlite3.call('sqlite3_open', ':memory:', dbPtrPtr);
+
+if (result !== 0) {
+  console.log('Failed to open database');
+  free(dbPtrPtr);
+} else {
+  const db = read(dbPtrPtr, FFIType.pointer);
+  free(dbPtrPtr);
+
+  // Create table
+  sqlite3.call('sqlite3_exec', 
+    db, 
+    'CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, age INTEGER)',
+    0, 0, 0
+  );
+
+  // Insert data
+  sqlite3.call('sqlite3_exec',
+    db,
+    "INSERT INTO users (name, age) VALUES ('Alice', 30)",
+    0, 0, 0
+  );
+
+  sqlite3.call('sqlite3_exec',
+    db,
+    "INSERT INTO users (name, age) VALUES ('Bob', 25)",
+    0, 0, 0
+  );
+
+  // Query with callback
+  const rowCallback = callback(
+    function (_, argc, argv, colNames) {
+      let row = '';
+      for (let i = 0; i < argc; i++) {
+        const colNamePtr = readPtr(colNames + i * 8, FFIType.pointer);
+        const valuePtr = readPtr(argv + i * 8, FFIType.pointer);
+        const colName = colNamePtr ? readPtr(colNamePtr, FFIType.string) : 'NULL';
+        const value = valuePtr ? readPtr(valuePtr, FFIType.string) : 'NULL';
+        row += `${colName}=${value} `;
+      }
+      console.log(`  Row: ${row}`);
+      return 0;
+    },
+    {
+      args: [FFIType.pointer, FFIType.int, FFIType.pointer, FFIType.pointer],
+      returns: FFIType.int
+    }
+  );
+
+  const execResult = sqlite3.call('sqlite3_exec',
+    db,
+    'SELECT * FROM users',
+    rowCallback,
+    0, 0
+  );
+
+  if (execResult !== 0) {
+    console.log(`Query error: ${sqlite3.call('sqlite3_errmsg', db)}`);
+  }
+
+  // Cleanup
+  freeCallback(rowCallback);
+  sqlite3.call('sqlite3_close', db);
+}
+```
+
+## Callbacks
+
+### Create JavaScript Callback
+
+```javascript
+const cb = callback(
+  function (arg1, arg2) {
+    console.log('Called from C:', arg1, arg2);
+    return 0;
+  },
+  {
+    args: [FFIType.int, FFIType.string],
+    returns: FFIType.int
+  }
+);
+
+// Pass callback to C function
+lib.call('register_callback', cb);
+
+// Free when done
+freeCallback(cb);
+```
+
+### Callback Signature
+
+```javascript
+const callback = callback(
+  jsFunction,  // JavaScript function to call
+  {
+    args: [],   // Array of argument types
+    returns: FFIType.void  // Return type
+  }
+);
+```
+
+## Variadic Functions
+
+Handle C functions with variable arguments:
+
+```javascript
+// printf(const char *format, ...)
+lib.define('printf', {
+  args: [FFIType.string, FFIType.spread],
+  returns: FFIType.int
+});
+
+lib.call('printf', 'Number: %d, String: %s', 42, 'hello');
+```
+
+## Pointer Arithmetic
+
+```javascript
+// Array of pointers (pointer arithmetic)
+const basePtr = alloc(8 * 10); // 10 pointers
+
+for (let i = 0; i < 10; i++) {
+  const offset = basePtr + (i * 8);
+  write(offset, FFIType.pointer, someValue);
+}
+
+// Read array elements
+for (let i = 0; i < 10; i++) {
+  const ptr = read(basePtr + (i * 8), FFIType.pointer);
+  const value = readPtr(ptr, FFIType.string);
+  console.log(value);
+}
+```
+
+## Structures
+
+Work with C structures:
+
+```javascript
+// C struct: { int32 x, int32 y, double value }
+const structSize = 4 + 4 + 8; // 16 bytes
+const structPtr = alloc(structSize);
+
+// Write fields
+write(structPtr + 0, FFIType.int, 10);      // x
+write(structPtr + 4, FFIType.int, 20);      // y  
+write(structPtr + 8, FFIType.double, 3.14); // value
+
+// Pass to C function
+lib.call('process_struct', structPtr);
+
+// Read fields
+const x = read(structPtr + 0, FFIType.int);
+const y = read(structPtr + 4, FFIType.int);
+const value = read(structPtr + 8, FFIType.double);
+
+free(structPtr);
+```
+
+## Error Handling
+
+```javascript
+try {
+  const lib = dlopen('nonexistent.so');
+} catch (err) {
+  console.error('Failed to load library:', err);
+}
+
+try {
+  lib.define('missing_function', {
+    args: [],
+    returns: FFIType.int
+  });
+} catch (err) {
+  console.error('Function not found:', err);
+}
+```
+
+## Best Practices
+
+1. **Always free allocated memory** - Use `free()` when done
+2. **Free callbacks** - Call `freeCallback()` to prevent leaks
+3. **Check return values** - Validate function results
+4. **Match types carefully** - Wrong types cause crashes
+5. **Use correct pointer sizes** - 8 bytes on 64-bit systems
+6. **Handle null pointers** - Check before dereferencing
+7. **Document signatures** - Comment FFI definitions
+8. **Error handling** - Check library load success
+
+## Common Patterns
+
+### Out Parameters
+
+```javascript
+// C: int getVersion(int *major, int *minor)
+const majorPtr = alloc(4);
+const minorPtr = alloc(4);
+
+lib.call('getVersion', majorPtr, minorPtr);
+
+const major = read(majorPtr, FFIType.int);
+const minor = read(minorPtr, FFIType.int);
+
+free(majorPtr);
+free(minorPtr);
+
+console.log(`Version: ${major}.${minor}`);
+```
+
+### String Buffers
+
+```javascript
+// C: void getName(char *buffer, int size)
+const bufferSize = 256;
+const buffer = alloc(bufferSize);
+
+lib.call('getName', buffer, bufferSize);
+const name = readPtr(buffer, FFIType.string);
+
+console.log('Name:', name);
+free(buffer);
+```
+
+## Performance Tips
+
+1. Reuse allocated buffers when possible
+2. Batch FFI calls instead of individual calls
+3. Cache frequently used pointers
+4. Minimize allocations in loops
+5. Use appropriate buffer sizes
+
+## Limitations
+
+- Maximum 32 arguments per function
+- No automatic struct handling
+- Manual memory management required
+- Platform-specific library names
+- No type safety (runtime only)
+
+## Platform Differences
+
+```javascript
+// Handle platform differences
+let libPath;
+if (suffix === 'dylib') {
+  libPath = '/usr/local/lib/libfoo.dylib';
+} else if (suffix === 'so') {
+  libPath = '/usr/lib/libfoo.so';
+} else {
+  libPath = 'C:\\Windows\\System32\\foo.dll';
+}
+
+const lib = dlopen(libPath);
+```

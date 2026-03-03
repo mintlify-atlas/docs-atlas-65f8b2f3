@@ -1,0 +1,674 @@
+---
+title: 'ant:readline'
+description: 'Interactive command-line interface with history, auto-completion, and key bindings'
+---
+
+The `ant:readline` module provides an interface for reading data from a readable stream (such as process.stdin) one line at a time, with features like command history, cursor movement, and auto-completion.
+
+## Import
+
+```javascript
+import * as readline from 'ant:readline';
+import { createInterface } from 'ant:readline';
+import { createInterface } from 'ant:readline/promises';
+```
+
+## Functions
+
+### createInterface()
+
+Creates a readline Interface instance for reading input line-by-line.
+
+```javascript
+const rl = readline.createInterface(options);
+```
+
+<ParamField path="options" type="object" required>
+  Configuration options for the interface
+</ParamField>
+
+**Options:**
+
+<ParamField path="input" type="stream" optional>
+  Input stream to read from (default: process.stdin)
+</ParamField>
+
+<ParamField path="output" type="stream" optional>
+  Output stream to write to (default: process.stdout)
+</ParamField>
+
+<ParamField path="prompt" type="string" default="> ">
+  Prompt string to display
+</ParamField>
+
+<ParamField path="terminal" type="boolean" optional>
+  Whether to treat streams as TTY (auto-detected if not specified)
+</ParamField>
+
+<ParamField path="historySize" type="number" default="30">
+  Maximum number of history entries to keep
+</ParamField>
+
+<ParamField path="removeHistoryDuplicates" type="boolean" default="false">
+  Remove duplicate entries from history
+</ParamField>
+
+<ParamField path="tabSize" type="number" default="8">
+  Number of spaces for tab character
+</ParamField>
+
+<ParamField path="crlfDelay" type="number" default="100">
+  Delay in milliseconds for CR+LF handling (minimum 100)
+</ParamField>
+
+<ParamField path="escapeCodeTimeout" type="number" optional>
+  Timeout for escape sequence detection
+</ParamField>
+
+<ParamField path="completer" type="function" optional>
+  Auto-completion function
+</ParamField>
+
+<ParamField path="history" type="Array<string>" optional>
+  Pre-populate with history entries
+</ParamField>
+
+<ResponseField name="return" type="Interface">
+  A readline Interface instance
+</ResponseField>
+
+### clearLine()
+
+Clears the current line in the specified direction.
+
+```javascript
+readline.clearLine(stream, dir);
+```
+
+<ParamField path="stream" type="stream" required>
+  Output stream
+</ParamField>
+
+<ParamField path="dir" type="number" required>
+  Direction: -1 (left), 0 (entire line), 1 (right)
+</ParamField>
+
+### clearScreenDown()
+
+Clears from cursor down to the end of the screen.
+
+```javascript
+readline.clearScreenDown(stream);
+```
+
+### cursorTo()
+
+Moves cursor to specified position.
+
+```javascript
+readline.cursorTo(stream, x, y);
+```
+
+<ParamField path="x" type="number" required>
+  Column position
+</ParamField>
+
+<ParamField path="y" type="number" optional>
+  Row position
+</ParamField>
+
+### moveCursor()
+
+Moves cursor relative to current position.
+
+```javascript
+readline.moveCursor(stream, dx, dy);
+```
+
+<ParamField path="dx" type="number" required>
+  Horizontal movement (positive = right, negative = left)
+</ParamField>
+
+<ParamField path="dy" type="number" required>
+  Vertical movement (positive = down, negative = up)
+</ParamField>
+
+### emitKeypressEvents()
+
+Enables keypress event emission on the input stream.
+
+```javascript
+readline.emitKeypressEvents(stream);
+```
+
+## Interface Object
+
+The Interface object provides methods and properties for interacting with the readline interface.
+
+### Methods
+
+#### question()
+
+Prompts the user with a question and returns a promise (when using `ant:readline/promises`) or takes a callback.
+
+```javascript
+// Promise version (ant:readline/promises)
+const answer = await rl.question('What is your name? ');
+
+// Callback version (ant:readline)
+rl.question('What is your name? ', (answer) => {
+  console.log(`Hello, ${answer}!`);
+});
+```
+
+<ParamField path="query" type="string" required>
+  Question prompt to display
+</ParamField>
+
+<ParamField path="callback" type="function" optional>
+  Callback function receiving the answer (callback version only)
+</ParamField>
+
+<ResponseField name="return" type="Promise<string> | undefined">
+  Promise with user's answer (promise version) or undefined (callback version)
+</ResponseField>
+
+#### prompt()
+
+Displays the prompt and allows input.
+
+```javascript
+rl.prompt();
+rl.prompt(true); // Preserve cursor position
+```
+
+<ParamField path="preserveCursor" type="boolean" default="false">
+  Whether to preserve the cursor position
+</ParamField>
+
+#### setPrompt()
+
+Sets the prompt string.
+
+```javascript
+rl.setPrompt('Enter command> ');
+```
+
+<ParamField path="prompt" type="string" required>
+  New prompt string
+</ParamField>
+
+#### getPrompt()
+
+Returns the current prompt string.
+
+```javascript
+const currentPrompt = rl.getPrompt();
+```
+
+<ResponseField name="return" type="string">
+  Current prompt string
+</ResponseField>
+
+#### write()
+
+Writes data to output or simulates keypresses.
+
+```javascript
+rl.write('hello');
+rl.write(null, { name: 'return' });
+rl.write('test', { name: 'delete', ctrl: true });
+```
+
+<ParamField path="data" type="string | null" required>
+  Data to write to the line buffer
+</ParamField>
+
+<ParamField path="key" type="object" optional>
+  Key object for simulating keypresses
+</ParamField>
+
+**Key Object:**
+- `name` (string) - Key name (e.g., 'return', 'backspace', 'delete', 'left', 'right', 'up', 'down', 'home', 'end')
+- `ctrl` (boolean) - Whether Ctrl is pressed
+- `meta` (boolean) - Whether Meta/Alt is pressed
+- `shift` (boolean) - Whether Shift is pressed
+
+#### pause()
+
+Pauses reading from the input stream.
+
+```javascript
+rl.pause();
+```
+
+#### resume()
+
+Resumes reading from the input stream.
+
+```javascript
+rl.resume();
+```
+
+#### close()
+
+Closes the interface and relinquishes control of input/output streams.
+
+```javascript
+rl.close();
+```
+
+#### on()
+
+Adds an event listener.
+
+```javascript
+rl.on(event, listener);
+```
+
+<ParamField path="event" type="string" required>
+  Event name ('line', 'close', 'pause', 'resume', 'history', 'SIGINT')
+</ParamField>
+
+<ParamField path="listener" type="function" required>
+  Event handler function
+</ParamField>
+
+<ResponseField name="return" type="Interface">
+  The Interface instance for chaining
+</ResponseField>
+
+#### once()
+
+Adds a one-time event listener.
+
+```javascript
+rl.once(event, listener);
+```
+
+#### off()
+
+Removes an event listener.
+
+```javascript
+rl.off(event, listener);
+```
+
+#### emit()
+
+Emits an event.
+
+```javascript
+rl.emit(event, ...args);
+```
+
+#### getCursorPos()
+
+Returns the current cursor position.
+
+```javascript
+const { rows, cols } = rl.getCursorPos();
+```
+
+<ResponseField name="return" type="object">
+  Object with `rows` and `cols` properties
+</ResponseField>
+
+### Properties
+
+<ResponseField name="line" type="string" readonly>
+  Current line buffer content
+</ResponseField>
+
+<ResponseField name="cursor" type="number" readonly>
+  Current cursor position in the line
+</ResponseField>
+
+<ResponseField name="closed" type="boolean" readonly>
+  Whether the interface is closed
+</ResponseField>
+
+<ResponseField name="terminal" type="boolean" readonly>
+  Whether the interface is operating in terminal mode
+</ResponseField>
+
+### Events
+
+#### line
+
+Emitted when a complete line is received (user presses Enter).
+
+```javascript
+rl.on('line', (line) => {
+  console.log('Received:', line);
+});
+```
+
+#### close
+
+Emitted when the interface is closed or receives EOF (Ctrl+D).
+
+```javascript
+rl.on('close', () => {
+  console.log('Interface closed');
+});
+```
+
+#### pause
+
+Emitted when the input stream is paused.
+
+```javascript
+rl.on('pause', () => {
+  console.log('Input paused');
+});
+```
+
+#### resume
+
+Emitted when the input stream is resumed.
+
+```javascript
+rl.on('resume', () => {
+  console.log('Input resumed');
+});
+```
+
+#### history
+
+Emitted when the history changes.
+
+```javascript
+rl.on('history', (history) => {
+  console.log('History entries:', history);
+});
+```
+
+#### SIGINT
+
+Emitted when the user presses Ctrl+C.
+
+```javascript
+rl.on('SIGINT', () => {
+  console.log('Ctrl+C pressed');
+  rl.close();
+});
+```
+
+## Key Bindings
+
+The readline interface supports the following keyboard shortcuts:
+
+- **Ctrl+A** - Move cursor to start of line
+- **Ctrl+E** - Move cursor to end of line
+- **Ctrl+K** - Delete from cursor to end of line
+- **Ctrl+U** - Delete entire line
+- **Ctrl+C** - Emit SIGINT signal
+- **Ctrl+D** - Close interface (if line is empty) or delete character
+- **Ctrl+L** - Clear screen
+- **Backspace** - Delete character before cursor
+- **Delete** - Delete character at cursor
+- **Left Arrow** - Move cursor left
+- **Right Arrow** - Move cursor right
+- **Up Arrow** - Previous history entry
+- **Down Arrow** - Next history entry
+- **Home** - Move to start of line
+- **End** - Move to end of line
+
+## Examples
+
+### Basic REPL
+
+```javascript
+import * as readline from 'ant:readline';
+import process from 'ant:process';
+
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout,
+  prompt: '> '
+});
+
+rl.prompt();
+
+rl.on('line', (line) => {
+  const trimmed = line.trim();
+  
+  if (trimmed === 'exit') {
+    console.log('Goodbye!');
+    rl.close();
+    return;
+  }
+  
+  console.log(`You entered: ${trimmed}`);
+  rl.prompt();
+});
+
+rl.on('close', () => {
+  process.exit(0);
+});
+```
+
+### Question/Answer (Promises)
+
+```javascript
+import { createInterface } from 'ant:readline/promises';
+import process from 'ant:process';
+
+const rl = createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
+
+async function survey() {
+  try {
+    const name = await rl.question('What is your name? ');
+    const age = await rl.question('How old are you? ');
+    const city = await rl.question('Where do you live? ');
+    
+    console.log('\n--- Profile ---');
+    console.log(`Name: ${name}`);
+    console.log(`Age: ${age}`);
+    console.log(`City: ${city}`);
+  } finally {
+    rl.close();
+  }
+}
+
+survey();
+```
+
+### Command History
+
+```javascript
+import { createInterface } from 'ant:readline';
+import process from 'ant:process';
+
+const rl = createInterface({
+  input: process.stdin,
+  output: process.stdout,
+  prompt: 'cmd> ',
+  historySize: 50,
+  removeHistoryDuplicates: true
+});
+
+rl.prompt();
+
+rl.on('line', (line) => {
+  if (line.trim()) {
+    console.log(`Executing: ${line}`);
+  }
+  rl.prompt();
+});
+
+rl.on('history', (history) => {
+  console.log(`History size: ${history.length}`);
+});
+```
+
+### Auto-completion
+
+```javascript
+import { createInterface } from 'ant:readline';
+import process from 'ant:process';
+
+const commands = [
+  'help', 'list', 'create', 'update', 
+  'delete', 'exit', 'clear'
+];
+
+function completer(line) {
+  const completions = commands.filter(cmd => cmd.startsWith(line));
+  return [completions.length ? completions : commands, line];
+}
+
+const rl = createInterface({
+  input: process.stdin,
+  output: process.stdout,
+  prompt: '$ ',
+  completer: completer
+});
+
+rl.prompt();
+
+rl.on('line', (line) => {
+  const cmd = line.trim();
+  
+  switch (cmd) {
+    case 'help':
+      console.log('Available commands:', commands.join(', '));
+      break;
+    case 'clear':
+      console.clear();
+      break;
+    case 'exit':
+      console.log('Exiting...');
+      rl.close();
+      return;
+    default:
+      console.log(`Unknown command: ${cmd}`);
+  }
+  
+  rl.prompt();
+});
+```
+
+### Multi-line Input
+
+```javascript
+import { createInterface } from 'ant:readline';
+import process from 'ant:process';
+
+const rl = createInterface({
+  input: process.stdin,
+  output: process.stdout,
+  prompt: '> '
+});
+
+let multilineBuffer = [];
+let multilineMode = false;
+
+rl.prompt();
+
+rl.on('line', (line) => {
+  if (line.trim() === '```') {
+    if (multilineMode) {
+      // End multiline mode
+      console.log('\nMultiline input:');
+      console.log(multilineBuffer.join('\n'));
+      multilineBuffer = [];
+      multilineMode = false;
+      rl.setPrompt('> ');
+    } else {
+      // Start multiline mode
+      multilineMode = true;
+      rl.setPrompt('... ');
+    }
+  } else if (multilineMode) {
+    multilineBuffer.push(line);
+  } else {
+    console.log('You entered:', line);
+  }
+  
+  rl.prompt();
+});
+```
+
+### Async Iterator (for-await-of)
+
+```javascript
+import { createInterface } from 'ant:readline/promises';
+import process from 'ant:process';
+
+const rl = createInterface({
+  input: process.stdin,
+  output: process.stdout,
+  prompt: '> '
+});
+
+rl.prompt();
+
+for await (const line of rl) {
+  if (line.trim() === 'exit') {
+    break;
+  }
+  console.log(`Received: ${line}`);
+  rl.prompt();
+}
+
+console.log('Done!');
+```
+
+### Custom Cursor Positioning
+
+```javascript
+import * as readline from 'ant:readline';
+import process from 'ant:process';
+
+// Clear entire screen
+readline.clearScreenDown(process.stdout);
+
+// Move cursor to position (10, 5)
+readline.cursorTo(process.stdout, 10, 5);
+console.log('Text at specific position');
+
+// Move cursor relative to current position
+readline.moveCursor(process.stdout, -5, 2); // 5 left, 2 down
+
+// Clear current line
+readline.clearLine(process.stdout, 0);
+```
+
+### Handling SIGINT
+
+```javascript
+import { createInterface } from 'ant:readline';
+import process from 'ant:process';
+
+const rl = createInterface({
+  input: process.stdin,
+  output: process.stdout,
+  prompt: '> '
+});
+
+let interruptCount = 0;
+
+rl.on('SIGINT', () => {
+  interruptCount++;
+  if (interruptCount >= 2) {
+    console.log('\nForce exit!');
+    process.exit(0);
+  } else {
+    console.log('\nPress Ctrl+C again to exit');
+    rl.prompt();
+  }
+});
+
+rl.prompt();
+
+rl.on('line', (line) => {
+  interruptCount = 0; // Reset counter
+  console.log('You entered:', line);
+  rl.prompt();
+});
+```

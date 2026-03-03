@@ -1,0 +1,169 @@
+---
+title: Getting Started with Embedding
+description: Learn how to embed Ant as a C library in your application
+---
+
+## Introduction
+
+Ant can be embedded as a C library (`libant`) in your applications, allowing you to run JavaScript code within your C/C++ programs. This guide will walk you through the setup process and basic usage.
+
+## Prerequisites
+
+- C compiler (clang or gcc)
+- Build tools (make, bash)
+- Platform-specific libraries:
+  - **macOS**: Security and CoreFoundation frameworks
+  - **Linux**: pthread, dl, and m libraries
+  - **Windows**: ws2_32, rpcrt4, secur32, ntdll, crypt32, and userenv libraries
+
+## Building libant
+
+<Steps>
+  <Step title="Build the static library">
+    Run the build script from the `libant` directory:
+    
+    ```bash
+    ./libant/build.sh
+    ```
+    
+    This script will:
+    - Set up the build environment
+    - Compile dependencies
+    - Compile the Ant runtime
+    - Bundle everything into `libant.a`
+  </Step>
+  
+  <Step title="Locate the output">
+    After building, you'll find:
+    - `libant/dist/libant.a` - The static library
+    - `libant/dist/ant.h` - The main header file
+    - `libant/dist/types.h` - Type definitions
+    - `libant/dist/common.h` - Common utilities
+  </Step>
+</Steps>
+
+## Creating Your First Embedded Application
+
+### Basic Example
+
+Here's a minimal example that evaluates a JavaScript expression:
+
+```c
+#include <ant.h>
+#include <stdio.h>
+#include <string.h>
+
+int main(void) {
+  // Create runtime with stack base
+  volatile char stack_base;
+  ant_t *js = js_create_dynamic();
+  js_setstackbase(js, (void *)&stack_base);
+  
+  // Initialize runtime
+  char *argv[] = { "myapp", NULL };
+  ant_runtime_init(js, 1, argv, NULL);
+  
+  // Evaluate JavaScript
+  const char *code = "1 + 2 * 3";
+  jsval_t result = js_eval_bytecode_eval(js, code, strlen(code));
+  
+  // Check result type and print
+  if (vtype(result) == T_NUM) {
+    printf("Result: %g\n", js_getnum(result));
+  } else if (vtype(result) == T_ERR) {
+    printf("Error: %s\n", js_str(js, result));
+  }
+  
+  // Cleanup
+  js_destroy(js);
+  return 0;
+}
+```
+
+### Compiling Your Application
+
+<Steps>
+  <Step title="Compile with libant">
+    Link your application against `libant.a`:
+    
+    ```bash
+    # macOS
+    clang myapp.c -I./libant/dist ./libant/dist/libant.a \
+      -framework Security -framework CoreFoundation -lpthread \
+      -o myapp
+    
+    # Linux
+    clang myapp.c -I./libant/dist ./libant/dist/libant.a \
+      -lpthread -ldl -lm -o myapp
+    
+    # Windows (MinGW)
+    clang myapp.c -I./libant/dist ./libant/dist/libant.a \
+      -lws2_32 -lrpcrt4 -lsecur32 -lntdll -lcrypt32 -luserenv \
+      -o myapp.exe
+    ```
+  </Step>
+  
+  <Step title="Run your application">
+    ```bash
+    ./myapp
+    ```
+  </Step>
+</Steps>
+
+## Key Concepts
+
+### Runtime Creation
+
+There are two ways to create a runtime:
+
+```c
+// Dynamic allocation (recommended)
+ant_t *js = js_create_dynamic();
+
+// Static buffer (for memory-constrained environments)
+void *buffer = malloc(size);
+ant_t *js = js_create(buffer, size);
+```
+
+### Stack Management
+
+Always set the stack base for proper stack overflow detection:
+
+```c
+volatile char stack_base;
+js_setstackbase(js, (void *)&stack_base);
+```
+
+### Value Types
+
+JavaScript values are represented as `jsval_t` with various types:
+
+- `T_NUM` - Number
+- `T_STR` - String
+- `T_BOOL` - Boolean
+- `T_OBJ` - Object
+- `T_ERR` - Error
+- `T_UNDEF` - Undefined
+- `T_NULL` - Null
+
+Check types using `vtype(value)` and convert using functions like:
+- `js_getnum(value)` for numbers
+- `js_getstr(js, value, &len)` for strings
+- `js_str(js, value)` for string representation
+
+### Global Object
+
+Access the global object to set or get global variables:
+
+```c
+jsval_t global = js_glob(js);
+js_set(js, global, "myVar", js_mknum(42));
+jsval_t value = js_get(js, global, "myVar");
+```
+
+## Next Steps
+
+- Explore the [API Reference](/embedding/api-reference) for detailed function documentation
+- Check out [Examples](/embedding/examples) for practical use cases
+- Learn about exposing C functions to JavaScript
+- Understand object and array manipulation

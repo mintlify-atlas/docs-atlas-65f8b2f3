@@ -1,0 +1,380 @@
+---
+title: Function Creation and Calling
+description: Create C functions callable from JavaScript and call JavaScript functions from C
+---
+
+The Ant C API provides functions for creating C functions that can be called from JavaScript, and for calling JavaScript functions from C.
+
+## Creating C Functions
+
+### js_mkfun
+
+Creates a JavaScript function from a C function pointer.
+
+```c
+jsval_t js_mkfun(jsval_t (*fn)(ant_t *, jsval_t *, int));
+```
+
+<ParamField path="fn" type="function pointer" required>
+  Pointer to a C function with signature `jsval_t fn(ant_t *js, jsval_t *args, int nargs)`.
+</ParamField>
+
+**Returns:** A function value that can be called from JavaScript.
+
+### Function Signature
+
+C functions callable from JavaScript must have this signature:
+
+```c
+jsval_t my_function(ant_t *js, jsval_t *args, int nargs);
+```
+
+<ParamField path="js" type="ant_t*" required>
+  The runtime instance.
+</ParamField>
+
+<ParamField path="args" type="jsval_t*" required>
+  Array of argument values.
+</ParamField>
+
+<ParamField path="nargs" type="int" required>
+  Number of arguments.
+</ParamField>
+
+**Returns:** The return value for JavaScript.
+
+### Example: Simple Function
+
+```c
+static jsval_t my_add(ant_t *js, jsval_t *args, int nargs) {
+  if (!js_chkargs(args, nargs, "dd")) {
+    return js_mkerr(js, "add() expects two numbers");
+  }
+  
+  double a = js_getnum(args[0]);
+  double b = js_getnum(args[1]);
+  
+  return js_mknum(a + b);
+}
+
+int main(void) {
+  ant_t *js = js_create_dynamic();
+  volatile char stack_base;
+  js_setstackbase(js, (void *)&stack_base);
+  
+  // Expose to JavaScript
+  jsval_t global = js_glob(js);
+  js_set(js, global, "add", js_mkfun(my_add));
+  
+  // Call from JavaScript
+  const char *code = "add(10, 32)";
+  jsval_t result = js_eval_bytecode_eval(js, code, strlen(code));
+  printf("Result: %g\n", js_getnum(result));  // 42
+  
+  js_destroy(js);
+  return 0;
+}
+```
+
+### Example: String Function
+
+```c
+static jsval_t my_greet(ant_t *js, jsval_t *args, int nargs) {
+  if (nargs < 1 || vtype(args[0]) != T_STR) {
+    return js_mkerr(js, "greet() expects a string");
+  }
+  
+  size_t len;
+  char *name = js_getstr(js, args[0], &len);
+  
+  char buf[256];
+  snprintf(buf, sizeof(buf), "Hello, %s!", name);
+  
+  return js_mkstr(js, buf, strlen(buf));
+}
+
+// Usage
+js_set(js, js_glob(js), "greet", js_mkfun(my_greet));
+
+const char *code = "greet('World')";
+jsval_t result = js_eval_bytecode_eval(js, code, strlen(code));
+printf("%s\n", js_str(js, result));  // "Hello, World!"
+```
+
+## Argument Validation
+
+### js_chkargs
+
+Validates function arguments against a type string.
+
+```c
+bool js_chkargs(jsval_t *args, int nargs, const char *types);
+```
+
+<ParamField path="args" type="jsval_t*" required>
+  Array of arguments.
+</ParamField>
+
+<ParamField path="nargs" type="int" required>
+  Number of arguments.
+</ParamField>
+
+<ParamField path="types" type="const char*" required>
+  Type string where each character represents an expected type:
+  - `d` - number (double)
+  - `s` - string
+  - `o` - object
+  - `a` - array
+  - `f` - function
+  - `b` - boolean
+</ParamField>
+
+**Returns:** `true` if arguments match the type string, `false` otherwise.
+
+### Example
+
+```c
+static jsval_t create_point(ant_t *js, jsval_t *args, int nargs) {
+  // Expects two numbers
+  if (!js_chkargs(args, nargs, "dd")) {
+    return js_mkerr(js, "createPoint() expects two numbers");
+  }
+  
+  jsval_t obj = js_mkobj(js);
+  js_set(js, obj, "x", args[0]);
+  js_set(js, obj, "y", args[1]);
+  
+  return obj;
+}
+```
+
+## Calling JavaScript Functions from C
+
+### sv_vm_call
+
+Calls a JavaScript function from C.
+
+```c
+jsval_t sv_vm_call(
+  void *vm,
+  ant_t *js,
+  jsval_t func,
+  jsval_t this_val,
+  jsval_t *args,
+  int nargs,
+  void *unused,
+  bool is_constructor
+);
+```
+
+<ParamField path="vm" type="void*" required>
+  The VM instance (use `js->vm`).
+</ParamField>
+
+<ParamField path="js" type="ant_t*" required>
+  The runtime instance.
+</ParamField>
+
+<ParamField path="func" type="jsval_t" required>
+  The function to call.
+</ParamField>
+
+<ParamField path="this_val" type="jsval_t" required>
+  The `this` value (use `js_mkundef()` for no specific this).
+</ParamField>
+
+<ParamField path="args" type="jsval_t*" required>
+  Array of arguments.
+</ParamField>
+
+<ParamField path="nargs" type="int" required>
+  Number of arguments.
+</ParamField>
+
+<ParamField path="unused" type="void*" required>
+  Reserved parameter (pass NULL).
+</ParamField>
+
+<ParamField path="is_constructor" type="bool" required>
+  Whether this is a constructor call.
+</ParamField>
+
+**Returns:** The return value from the function.
+
+### Example
+
+```c
+// Define a JavaScript function
+const char *code =
+  "function multiply(a, b) {"
+  "  return a * b;"
+  "}";
+
+js_eval_bytecode_eval(js, code, strlen(code));
+
+// Get the function
+jsval_t glob = js_glob(js);
+jsval_t multiply_fn = js_get(js, glob, "multiply");
+
+// Call it from C
+jsval_t args[] = { js_mknum(6), js_mknum(7) };
+jsval_t result = sv_vm_call(
+  js->vm, js, multiply_fn, js_mkundef(),
+  args, 2, NULL, false
+);
+
+printf("Result: %g\n", js_getnum(result));  // 42
+```
+
+## Working with `this`
+
+### js_getthis
+
+Returns the current `this` value within a function.
+
+```c
+jsval_t js_getthis(ant_t *js);
+```
+
+**Returns:** The current `this` value.
+
+### js_setthis
+
+Sets the `this` value.
+
+```c
+void js_setthis(ant_t *js, jsval_t this_val);
+```
+
+<ParamField path="js" type="ant_t*" required>
+  The runtime instance.
+</ParamField>
+
+<ParamField path="this_val" type="jsval_t" required>
+  The new `this` value.
+</ParamField>
+
+### Example: Method Function
+
+```c
+static jsval_t get_full_name(ant_t *js, jsval_t *args, int nargs) {
+  (void)args; (void)nargs;
+  
+  // Get 'this' object
+  jsval_t this_obj = js_getthis(js);
+  
+  // Access properties
+  jsval_t first = js_get(js, this_obj, "firstName");
+  jsval_t last = js_get(js, this_obj, "lastName");
+  
+  size_t first_len, last_len;
+  char *first_str = js_getstr(js, first, &first_len);
+  char *last_str = js_getstr(js, last, &last_len);
+  
+  char buf[256];
+  snprintf(buf, sizeof(buf), "%s %s", first_str, last_str);
+  
+  return js_mkstr(js, buf, strlen(buf));
+}
+
+int main(void) {
+  ant_t *js = js_create_dynamic();
+  volatile char stack_base;
+  js_setstackbase(js, (void *)&stack_base);
+  
+  // Create an object with a method
+  jsval_t person = js_mkobj(js);
+  js_set(js, person, "firstName", js_mkstr(js, "Jane", 4));
+  js_set(js, person, "lastName", js_mkstr(js, "Smith", 5));
+  js_set(js, person, "getFullName", js_mkfun(get_full_name));
+  
+  js_set(js, js_glob(js), "person", person);
+  
+  // Call the method
+  const char *code = "person.getFullName()";
+  jsval_t result = js_eval_bytecode_eval(js, code, strlen(code));
+  printf("%s\n", js_str(js, result));  // "Jane Smith"
+  
+  js_destroy(js);
+  return 0;
+}
+```
+
+### js_getcurrentfunc
+
+Returns the currently executing function.
+
+```c
+jsval_t js_getcurrentfunc(ant_t *js);
+```
+
+**Returns:** The current function value.
+
+## Advanced: Functions with Data
+
+### js_heavy_mkfun
+
+Creates a function with associated data.
+
+```c
+jsval_t js_heavy_mkfun(ant_t *js, jsval_t (*fn)(ant_t *, jsval_t *, int), jsval_t data);
+```
+
+<ParamField path="js" type="ant_t*" required>
+  The runtime instance.
+</ParamField>
+
+<ParamField path="fn" type="function pointer" required>
+  The function pointer.
+</ParamField>
+
+<ParamField path="data" type="jsval_t" required>
+  Associated data accessible within the function.
+</ParamField>
+
+**Returns:** A function value with associated data.
+
+## Complete Example
+
+```c
+#include <ant.h>
+#include <stdio.h>
+#include <string.h>
+
+static jsval_t format_name(ant_t *js, jsval_t *args, int nargs) {
+  if (!js_chkargs(args, nargs, "ss")) {
+    return js_mkerr(js, "formatName() expects two strings");
+  }
+  
+  size_t first_len, last_len;
+  char *first = js_getstr(js, args[0], &first_len);
+  char *last = js_getstr(js, args[1], &last_len);
+  
+  char buf[256];
+  snprintf(buf, sizeof(buf), "%s, %s", last, first);
+  
+  return js_mkstr(js, buf, strlen(buf));
+}
+
+int main(void) {
+  volatile char stack_base;
+  ant_t *js = js_create_dynamic();
+  js_setstackbase(js, (void *)&stack_base);
+  
+  char *argv[] = { "app", NULL };
+  ant_runtime_init(js, 1, argv, NULL);
+  
+  // Register C function
+  jsval_t global = js_glob(js);
+  js_set(js, global, "formatName", js_mkfun(format_name));
+  
+  // Call from JavaScript
+  const char *code = "formatName('John', 'Doe')";
+  jsval_t result = js_eval_bytecode_eval(js, code, strlen(code));
+  
+  printf("Result: %s\n", js_str(js, result));
+  
+  js_destroy(js);
+  return 0;
+}
+```

@@ -1,0 +1,438 @@
+---
+title: 'ant:server'
+description: 'HTTP server with request/response handling and gzip compression'
+---
+
+The `ant:server` module provides a high-performance HTTP server implementation with automatic gzip compression, custom headers, and flexible routing.
+
+## Import
+
+```javascript
+import { serve } from 'ant:server';
+import Ant from 'ant:ant';
+```
+
+## Functions
+
+### serve()
+
+Starts an HTTP server on the specified port and handles incoming requests.
+
+```javascript
+Ant.serve(port, handler);
+```
+
+<ParamField path="port" type="number" required>
+  Port number to listen on (e.g., 3000, 8080)
+</ParamField>
+
+<ParamField path="handler" type="function" required>
+  Request handler function receiving (ctx, server) parameters
+</ParamField>
+
+<ResponseField name="return" type="number">
+  Returns 1 on success, 0 on failure
+</ResponseField>
+
+## Handler Context
+
+The handler function receives a context object with request and response objects:
+
+### ctx.req (Request)
+
+The request object contains information about the incoming HTTP request.
+
+<ResponseField name="method" type="string">
+  HTTP method (GET, POST, PUT, DELETE, etc.)
+</ResponseField>
+
+<ResponseField name="uri" type="string">
+  Request URI path (without query string)
+</ResponseField>
+
+<ResponseField name="query" type="string">
+  Query string portion of the URL
+</ResponseField>
+
+<ResponseField name="body" type="string">
+  Request body content
+</ResponseField>
+
+#### req.header()
+
+Gets a request header value by name (case-insensitive).
+
+```javascript
+const userAgent = ctx.req.header('User-Agent');
+const contentType = ctx.req.header('content-type');
+```
+
+<ParamField path="name" type="string" required>
+  Header name (case-insensitive)
+</ParamField>
+
+<ResponseField name="return" type="string | undefined">
+  Header value, or undefined if not found
+</ResponseField>
+
+### ctx.res (Response)
+
+The response object provides methods for sending HTTP responses.
+
+#### res.status()
+
+Sets the HTTP status code for the response.
+
+```javascript
+ctx.res.status(404);
+ctx.res.status(500);
+```
+
+<ParamField path="code" type="number" required>
+  HTTP status code (200, 404, 500, etc.)
+</ParamField>
+
+#### res.header()
+
+Sets a custom response header.
+
+```javascript
+ctx.res.header('X-Custom-Header', 'value');
+ctx.res.header('Cache-Control', 'no-cache');
+```
+
+<ParamField path="name" type="string" required>
+  Header name
+</ParamField>
+
+<ParamField path="value" type="string" required>
+  Header value
+</ParamField>
+
+#### res.body()
+
+Sends a plain text response.
+
+```javascript
+ctx.res.body('Hello, World!');
+ctx.res.body('Not Found', 404);
+ctx.res.body('Custom content', 200, 'text/plain');
+```
+
+<ParamField path="text" type="string" required>
+  Response body content
+</ParamField>
+
+<ParamField path="status" type="number" optional>
+  HTTP status code (default: 200)
+</ParamField>
+
+<ParamField path="contentType" type="string" optional>
+  Content-Type header (default: 'text/plain')
+</ParamField>
+
+#### res.html()
+
+Sends an HTML response with proper Content-Type.
+
+```javascript
+ctx.res.html('<h1>Welcome</h1>');
+ctx.res.html('<h1>Error</h1>', 500);
+```
+
+<ParamField path="html" type="string" required>
+  HTML content
+</ParamField>
+
+<ParamField path="status" type="number" default="200">
+  HTTP status code
+</ParamField>
+
+#### res.json()
+
+Sends a JSON response, automatically serializing JavaScript objects.
+
+```javascript
+ctx.res.json({ message: 'Success', data: [1, 2, 3] });
+ctx.res.json({ error: 'Not found' }, 404);
+```
+
+<ParamField path="data" type="any" required>
+  Data to serialize as JSON
+</ParamField>
+
+<ParamField path="status" type="number" default="200">
+  HTTP status code
+</ParamField>
+
+#### res.notFound()
+
+Sends a standard 404 Not Found response.
+
+```javascript
+ctx.res.notFound();
+```
+
+#### res.redirect()
+
+Sends a redirect response to another URL.
+
+```javascript
+ctx.res.redirect('/home');
+ctx.res.redirect('https://example.com', 301);
+```
+
+<ParamField path="location" type="string" required>
+  URL to redirect to
+</ParamField>
+
+<ParamField path="status" type="number" default="302">
+  Redirect status code (301, 302, 307, 308)
+</ParamField>
+
+### ctx.get() / ctx.set()
+
+Get and set custom properties on the context for sharing data between middleware.
+
+```javascript
+ctx.set('user', { id: 123, name: 'Alice' });
+const user = ctx.get('user');
+```
+
+<ParamField path="key" type="string" required>
+  Property key
+</ParamField>
+
+<ParamField path="value" type="any" required>
+  Property value (for set)
+</ParamField>
+
+## Server Object
+
+The second parameter passed to the handler is a server object.
+
+<ResponseField name="port" type="number">
+  The port the server is listening on
+</ResponseField>
+
+### server.stop()
+
+Stops the HTTP server and closes all connections.
+
+```javascript
+server.stop();
+```
+
+## Features
+
+### Automatic gzip Compression
+
+The server automatically compresses responses with gzip when:
+- Client sends `Accept-Encoding: gzip` header
+- Response body is >= 1024 bytes
+- Content-Type is compressible (text/html, text/css, application/json, etc.)
+
+### Status Code Support
+
+Supports all standard HTTP status codes with proper status text:
+- 1xx Informational (100, 101, 102, 103)
+- 2xx Success (200, 201, 202, 204, etc.)
+- 3xx Redirection (301, 302, 303, 304, 307, 308)
+- 4xx Client Errors (400, 401, 403, 404, 418, 429, etc.)
+- 5xx Server Errors (500, 501, 502, 503, 504, etc.)
+
+## Examples
+
+### Basic Server
+
+```javascript
+import Ant from 'ant:ant';
+
+Ant.serve(3000, (ctx, server) => {
+  console.log(ctx.req.method, ctx.req.uri);
+  
+  if (ctx.req.uri === '/') {
+    ctx.res.html('<h1>Welcome to Ant Server</h1>');
+  } else {
+    ctx.res.notFound();
+  }
+});
+
+console.log('Server listening on http://localhost:3000');
+```
+
+### REST API Server
+
+```javascript
+import Ant from 'ant:ant';
+
+const users = [
+  { id: 1, name: 'Alice' },
+  { id: 2, name: 'Bob' }
+];
+
+Ant.serve(8080, (ctx, server) => {
+  const { req, res } = ctx;
+  
+  // CORS headers
+  res.header('Access-Control-Allow-Origin', '*');
+  
+  // Route: GET /api/users
+  if (req.method === 'GET' && req.uri === '/api/users') {
+    res.json({ users });
+  }
+  // Route: GET /api/users/:id
+  else if (req.method === 'GET' && req.uri.startsWith('/api/users/')) {
+    const id = parseInt(req.uri.split('/')[3]);
+    const user = users.find(u => u.id === id);
+    
+    if (user) {
+      res.json({ user });
+    } else {
+      res.json({ error: 'User not found' }, 404);
+    }
+  }
+  // Route: POST /api/users
+  else if (req.method === 'POST' && req.uri === '/api/users') {
+    try {
+      const newUser = JSON.parse(req.body);
+      newUser.id = users.length + 1;
+      users.push(newUser);
+      res.json({ user: newUser }, 201);
+    } catch (err) {
+      res.json({ error: 'Invalid JSON' }, 400);
+    }
+  }
+  else {
+    res.notFound();
+  }
+});
+```
+
+### File Server with Custom Headers
+
+```javascript
+import Ant from 'ant:ant';
+import { readFileSync } from 'ant:fs';
+
+Ant.serve(3000, (ctx, server) => {
+  const { req, res } = ctx;
+  
+  // Add custom headers
+  res.header('X-Powered-By', 'Ant Runtime');
+  res.header('X-Server-Version', '1.0.0');
+  
+  if (req.uri === '/') {
+    res.html(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>File Server</title>
+          <link rel="stylesheet" href="/style.css">
+        </head>
+        <body>
+          <h1>Welcome!</h1>
+          <script src="/script.js"></script>
+        </body>
+      </html>
+    `);
+  }
+  else if (req.uri === '/style.css') {
+    try {
+      const css = readFileSync('./public/style.css', 'utf8');
+      res.header('Content-Type', 'text/css');
+      res.body(css);
+    } catch (err) {
+      res.notFound();
+    }
+  }
+  else if (req.uri === '/script.js') {
+    try {
+      const js = readFileSync('./public/script.js', 'utf8');
+      res.header('Content-Type', 'application/javascript');
+      res.body(js);
+    } catch (err) {
+      res.notFound();
+    }
+  }
+  else {
+    res.notFound();
+  }
+});
+```
+
+### Query String Parsing
+
+```javascript
+import Ant from 'ant:ant';
+
+Ant.serve(3000, (ctx) => {
+  const { req, res } = ctx;
+  
+  if (req.uri === '/search') {
+    // Parse query string: /search?q=hello&limit=10
+    const params = new URLSearchParams(req.query);
+    const query = params.get('q') || '';
+    const limit = parseInt(params.get('limit')) || 10;
+    
+    res.json({
+      query,
+      limit,
+      results: ['result1', 'result2']
+    });
+  } else {
+    res.notFound();
+  }
+});
+```
+
+### Redirect Example
+
+```javascript
+import Ant from 'ant:ant';
+
+Ant.serve(3000, (ctx) => {
+  const { req, res } = ctx;
+  
+  if (req.uri === '/old-page') {
+    // Permanent redirect
+    res.redirect('/new-page', 301);
+  }
+  else if (req.uri === '/temporary') {
+    // Temporary redirect (default 302)
+    res.redirect('/home');
+  }
+  else if (req.uri === '/external') {
+    res.redirect('https://example.com');
+  }
+  else {
+    res.html('<h1>Home Page</h1>');
+  }
+});
+```
+
+### Error Handling
+
+```javascript
+import Ant from 'ant:ant';
+
+Ant.serve(3000, (ctx, server) => {
+  const { req, res } = ctx;
+  
+  try {
+    // Your route logic here
+    if (req.uri === '/error') {
+      throw new Error('Something went wrong!');
+    }
+    
+    res.html('<h1>Success</h1>');
+  } catch (error) {
+    console.error('Error:', error.message);
+    res.status(500);
+    res.json({
+      error: 'Internal Server Error',
+      message: error.message
+    });
+  }
+});
+```

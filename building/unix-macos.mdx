@@ -1,0 +1,259 @@
+---
+title: Building on Unix and macOS
+description: Complete build instructions for Ant on Unix and macOS platforms
+---
+
+## Prerequisites
+
+### Unix Prerequisites
+
+Installation via package manager:
+
+<CodeGroup>
+```bash Ubuntu/Debian
+sudo apt-get install python3 python3-pip gcc-14 g++-14 ninja-build cmake \
+  pkg-config uuid-dev libssl-dev libsodium-dev nodejs npm
+pip3 install meson
+```
+
+```bash Fedora
+sudo dnf install python3 gcc gcc-c++ ninja-build cmake pkgconf \
+  libuuid-devel openssl-devel libsodium-devel nodejs npm
+pip3 install meson
+```
+
+```sh Alpine (musl)
+apk add clang lld llvm meson ninja cmake pkgconf nodejs npm \
+  musl-dev openssl-dev openssl-libs-static libsodium-dev libsodium-static \
+  util-linux-dev util-linux-static linux-headers libunwind-dev libunwind-static
+```
+</CodeGroup>
+
+You will also need Rust and Zig installed:
+
+```bash
+# Rust (via rustup)
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+# Zig (download from https://ziglang.org/download/)
+# Or via package manager if available
+```
+
+### macOS Prerequisites
+
+<Steps>
+  <Step title="Install Xcode Command Line Tools">
+    Provides Apple Clang compiler:
+    
+    ```bash
+    xcode-select --install
+    ```
+  </Step>
+  
+  <Step title="Install tools via Homebrew">
+    Install remaining build tools:
+    
+    ```bash
+    brew install meson ninja llvm openssl@3 libsodium node
+    ```
+  </Step>
+  
+  <Step title="Install Rust and Zig">
+    ```bash
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+    brew install zig
+    ```
+  </Step>
+</Steps>
+
+## Building Ant
+
+<Warning>
+  If the path to your build directory contains a space, the build will likely fail.
+</Warning>
+
+<Steps>
+  <Step title="Download subprojects">
+    ```bash
+    meson subprojects download
+    ```
+  </Step>
+  
+  <Step title="Configure the build">
+    ```bash
+    meson setup build
+    ```
+  </Step>
+  
+  <Step title="Compile">
+    ```bash
+    meson compile -C build
+    ```
+  </Step>
+</Steps>
+
+### Alternative: Using maid
+
+If you have [maid](https://github.com/exact-labs/maid) installed, you can use the task runner:
+
+```bash
+maid setup       # downloads subprojects + configures with ccache and lld
+maid build       # compiles
+maid run <file>  # builds and runs a JS file
+```
+
+<Tip>
+  `maid setup` automatically configures ccache and lld for faster builds. Use `maid run <file>` during development to build and execute in one step.
+</Tip>
+
+## Verifying the Build
+
+To verify the build:
+
+```bash
+./build/ant --version
+./build/ant -e "console.log('Hello from Ant ' + Ant.version)"
+```
+
+## Installing Ant
+
+You can install the built binary using:
+
+```bash
+maid install
+```
+
+This copies the binary to the directory of an existing `ant` installation, or falls back to `~/.ant/bin/`. It also creates an `antx` symlink.
+
+Alternatively, copy the binary manually:
+
+```bash
+cp ./build/ant /usr/local/bin/ant
+```
+
+## Running Tests
+
+To run a single test:
+
+```bash
+./build/ant tests/test_async.cjs
+```
+
+To run the spec suite:
+
+```bash
+./build/ant examples/spec/run.js
+```
+
+<Note>
+  Remember to recompile with `meson compile -C build` (or `maid build`) between test runs if you change code in the `src/` directory.
+</Note>
+
+## Building a Debug Build
+
+A debug build disables optimizations and LTO, and preserves debug symbols:
+
+<CodeGroup>
+```bash Meson
+meson subprojects download
+CC="ccache $(which clang)" \
+  meson setup build --wipe --buildtype=debug \
+  -Doptimization=0 -Db_lto=false -Dstrip=false -Db_lundef=false -Dunity=off
+meson compile -C build
+```
+
+```bash maid
+maid debug
+maid build
+```
+</CodeGroup>
+
+When using the debug build, core dumps will be generated in case of crashes. Use `lldb` or `gdb` with the debug binary to inspect them:
+
+```bash
+lldb ./build/ant core.ant
+(lldb) bt
+```
+
+## Building an ASan Build
+
+[ASan](https://github.com/google/sanitizers) can help detect memory bugs.
+
+<Warning>
+  ASan builds are significantly slower than release builds. The debug flags are not required but can produce clearer stack traces when ASan detects an issue.
+</Warning>
+
+<CodeGroup>
+```bash Meson
+meson subprojects download
+CC="ccache $(which clang)" \
+  meson setup build --wipe \
+  -Db_sanitize=address -Doptimization=0 -Db_lto=false -Dstrip=false -Db_lundef=false
+meson compile -C build
+```
+
+```bash maid
+maid asan
+maid build
+```
+</CodeGroup>
+
+Then run tests against the ASan build:
+
+```bash
+./build/ant tests/test_gc.js
+```
+
+## Speeding Up Frequent Rebuilds
+
+If you plan to frequently rebuild Ant, installing `ccache` can greatly reduce build times. The `maid setup` task configures ccache automatically.
+
+<Tip>
+  Using both `ccache` and `lld` together provides the best rebuild performance. `ccache` caches compilation, while `lld` speeds up linking (which cannot be cached).
+</Tip>
+
+<CodeGroup>
+```bash GNU/Linux
+sudo apt install ccache
+export CC="ccache gcc"    # add to your .profile
+```
+
+```bash macOS
+brew install ccache
+export CC="ccache cc"     # add to ~/.zshrc
+```
+</CodeGroup>
+
+Using `lld` as the linker also speeds up link times:
+
+```bash
+export CC_LD="$(which ld64.lld)"  # macOS with brew llvm
+# or
+export CC_LD="$(which lld)"       # Linux
+```
+
+<Note>
+  LTO is enabled by default with 8 threads (`b_lto=true`, `b_lto_threads=8`). Disable it with `-Db_lto=false` for faster iteration during development.
+</Note>
+
+## Troubleshooting
+
+Stale builds can sometimes result in errors. Clean the build directory and reconfigure:
+
+```bash
+rm -rf build
+meson setup build
+meson compile -C build
+```
+
+If you encounter "file not found" errors for vendored dependencies:
+
+```bash
+meson subprojects download
+```
+
+If the build runs out of memory, reduce parallelism:
+
+```bash
+meson compile -C build -j2
+```

@@ -1,0 +1,255 @@
+---
+title: localStorage and sessionStorage
+description: Web Storage API for persistent and session-based key-value storage
+---
+
+Ant provides `localStorage` and `sessionStorage` APIs compatible with the Web Storage specification for storing key-value data.
+
+## localStorage
+
+The `localStorage` object provides persistent storage that survives across program executions. Data is saved to a JSON file on disk.
+
+### Configuration
+
+Before using `localStorage`, you must configure the storage file path either:
+
+1. Via command line flag:
+   ```bash
+   ant --localstorage-file=/path/to/storage.json script.js
+   ```
+
+2. Via the `setFile()` method:
+   ```javascript
+   localStorage.setFile('/path/to/storage.json');
+   ```
+
+### Properties
+
+#### length
+
+Returns the number of key-value pairs stored.
+
+```javascript
+console.log(localStorage.length);  // 0
+localStorage.setItem('key1', 'value1');
+localStorage.setItem('key2', 'value2');
+console.log(localStorage.length);  // 2
+```
+
+### Methods
+
+#### setItem(key, value)
+
+Stores a key-value pair. The value is automatically converted to a string.
+
+<ParamField path="key" type="string" required>
+  The key to store the value under.
+</ParamField>
+
+<ParamField path="value" type="any" required>
+  The value to store. Will be converted to string.
+</ParamField>
+
+```javascript
+localStorage.setItem('username', 'alice');
+localStorage.setItem('count', 42);  // Stored as "42"
+```
+
+#### getItem(key)
+
+Retrieves a value by key. Returns `null` if the key doesn't exist.
+
+<ParamField path="key" type="string" required>
+  The key to retrieve.
+</ParamField>
+
+**Returns:** The stored value as a string, or `null` if not found.
+
+```javascript
+const username = localStorage.getItem('username');
+console.log(username);  // "alice"
+
+const missing = localStorage.getItem('nonexistent');
+console.log(missing);  // null
+```
+
+#### removeItem(key)
+
+Removes a key-value pair from storage.
+
+<ParamField path="key" type="string" required>
+  The key to remove.
+</ParamField>
+
+```javascript
+localStorage.setItem('temp', 'value');
+localStorage.removeItem('temp');
+console.log(localStorage.getItem('temp'));  // null
+```
+
+#### clear()
+
+Removes all key-value pairs from storage.
+
+```javascript
+localStorage.setItem('key1', 'value1');
+localStorage.setItem('key2', 'value2');
+localStorage.clear();
+console.log(localStorage.length);  // 0
+```
+
+#### key(index)
+
+Returns the key at the specified index, or `null` if out of bounds.
+
+<ParamField path="index" type="number" required>
+  The zero-based index.
+</ParamField>
+
+**Returns:** The key name as a string, or `null`.
+
+```javascript
+localStorage.setItem('first', 'value1');
+localStorage.setItem('second', 'value2');
+
+console.log(localStorage.key(0));  // "first"
+console.log(localStorage.key(1));  // "second"
+console.log(localStorage.key(2));  // null
+```
+
+#### setFile(path)
+
+Configures the file path for persistent storage. Loads existing data from the file.
+
+<ParamField path="path" type="string" required>
+  The file path where data will be saved.
+</ParamField>
+
+```javascript
+localStorage.setFile('./my-storage.json');
+```
+
+### Example: User Preferences
+
+```javascript
+localStorage.setFile('./user-prefs.json');
+
+// Save preferences
+const preferences = {
+  theme: 'dark',
+  fontSize: 14,
+  notifications: true
+};
+
+localStorage.setItem('prefs', JSON.stringify(preferences));
+
+// Load preferences (in another execution)
+const saved = localStorage.getItem('prefs');
+if (saved) {
+  const prefs = JSON.parse(saved);
+  console.log(prefs.theme);  // "dark"
+}
+```
+
+### Example: Iteration
+
+```javascript
+// Store multiple items
+localStorage.setItem('name', 'Alice');
+localStorage.setItem('age', '30');
+localStorage.setItem('city', 'NYC');
+
+// Iterate over all items
+for (let i = 0; i < localStorage.length; i++) {
+  const key = localStorage.key(i);
+  const value = localStorage.getItem(key);
+  console.log(`${key}: ${value}`);
+}
+```
+
+## sessionStorage
+
+The `sessionStorage` object provides session-based storage that only persists for the lifetime of the program execution. Data is stored in memory and is lost when the program exits.
+
+### Differences from localStorage
+
+- No file persistence - data is memory-only
+- No configuration required - works immediately
+- Data is cleared when the program exits
+
+### Methods
+
+`sessionStorage` supports the same methods as `localStorage`:
+
+- `setItem(key, value)`
+- `getItem(key)`
+- `removeItem(key)`
+- `clear()`
+- `key(index)`
+- `length` property
+
+### Example: Session Data
+
+```javascript
+// Store temporary session data
+sessionStorage.setItem('sessionId', 'abc123');
+sessionStorage.setItem('startTime', Date.now().toString());
+
+// Use during program execution
+const sessionId = sessionStorage.getItem('sessionId');
+console.log(`Session: ${sessionId}`);
+
+// Clear session data
+sessionStorage.clear();
+```
+
+### Example: Temporary Cache
+
+```javascript
+function expensiveOperation(input) {
+  // Check cache
+  const cached = sessionStorage.getItem(`cache:${input}`);
+  if (cached) {
+    console.log('Cache hit!');
+    return JSON.parse(cached);
+  }
+  
+  // Compute result
+  console.log('Computing...');
+  const result = { data: input.toUpperCase() };
+  
+  // Store in cache
+  sessionStorage.setItem(`cache:${input}`, JSON.stringify(result));
+  
+  return result;
+}
+
+console.log(expensiveOperation('hello'));  // Computing...
+console.log(expensiveOperation('hello'));  // Cache hit!
+```
+
+## Comparison
+
+| Feature | localStorage | sessionStorage |
+|---------|-------------|----------------|
+| Persistence | File-based | Memory-only |
+| Configuration | Required | Not required |
+| Use Case | User preferences, settings | Temporary data, caching |
+| Data survives restart | Yes (if file configured) | No |
+
+## Error Handling
+
+If `localStorage` is used without configuring a file path, methods will return errors:
+
+```javascript
+// Without configuration
+try {
+  localStorage.setItem('key', 'value');
+} catch (e) {
+  console.log(e);  // Error: --localstorage-file not provided
+}
+
+// After configuration
+localStorage.setFile('./storage.json');
+localStorage.setItem('key', 'value');  // Works
+```

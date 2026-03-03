@@ -1,0 +1,410 @@
+---
+title: 'ant:fs'
+description: 'File system operations for reading, writing, and managing files'
+---
+
+The `ant:fs` module provides functions for interacting with the file system.
+
+## Import
+
+```javascript
+import { readFile, writeFile, readdir } from 'ant:fs';
+import * as fs from 'ant:fs';
+```
+
+## Reading Files
+
+### readFile()
+
+Asynchronously reads the entire contents of a file.
+
+```javascript
+const data = await readFile(path, options);
+```
+
+<ParamField path="path" type="string" required>
+  The file path
+</ParamField>
+
+<ParamField path="options" type="string | object" optional>
+  Encoding ('utf8', 'base64', etc.) or options object
+</ParamField>
+
+<ResponseField name="return" type="Promise<string | Uint8Array>">
+  File contents as string (if encoding specified) or Uint8Array
+</ResponseField>
+
+### readFileSync()
+
+Synchronously reads a file.
+
+```javascript
+const data = readFileSync(path, options);
+```
+
+<ParamField path="path" type="string" required>
+  The file path
+</ParamField>
+
+<ParamField path="options" type="string | object" optional>
+  Encoding or options object
+</ParamField>
+
+<ResponseField name="return" type="string | Uint8Array">
+  File contents
+</ResponseField>
+
+## Writing Files
+
+### writeFile()
+
+Asynchronously writes data to a file.
+
+```javascript
+await writeFile(path, data, options);
+```
+
+<ParamField path="path" type="string" required>
+  The file path
+</ParamField>
+
+<ParamField path="data" type="string | Uint8Array" required>
+  Data to write
+</ParamField>
+
+<ParamField path="options" type="object" optional>
+  Write options
+</ParamField>
+
+### writeFileSync()
+
+Synchronously writes data to a file.
+
+```javascript
+writeFileSync(path, data, options);
+```
+
+<ParamField path="path" type="string" required>
+  The file path
+</ParamField>
+
+<ParamField path="data" type="string | Uint8Array" required>
+  Data to write
+</ParamField>
+
+### appendFileSync()
+
+Appends data to a file synchronously.
+
+```javascript
+appendFileSync(path, data, options);
+```
+
+<ParamField path="path" type="string" required>
+  The file path
+</ParamField>
+
+<ParamField path="data" type="string" required>
+  Data to append
+</ParamField>
+
+## File Operations
+
+### unlink()
+
+Deletes a file asynchronously.
+
+```javascript
+await unlink(path);
+```
+
+<ParamField path="path" type="string" required>
+  Path to the file to delete
+</ParamField>
+
+### unlinkSync()
+
+Deletes a file synchronously.
+
+```javascript
+unlinkSync(path);
+```
+
+### copyFileSync()
+
+Copies a file synchronously.
+
+```javascript
+copyFileSync(src, dest);
+```
+
+<ParamField path="src" type="string" required>
+  Source file path
+</ParamField>
+
+<ParamField path="dest" type="string" required>
+  Destination file path
+</ParamField>
+
+### renameSync()
+
+Renames or moves a file synchronously.
+
+```javascript
+renameSync(oldPath, newPath);
+```
+
+<ParamField path="oldPath" type="string" required>
+  Current file path
+</ParamField>
+
+<ParamField path="newPath" type="string" required>
+  New file path
+</ParamField>
+
+## Directory Operations
+
+### mkdir()
+
+Creates a directory asynchronously.
+
+```javascript
+await mkdir(path, options);
+```
+
+<ParamField path="path" type="string" required>
+  Directory path
+</ParamField>
+
+<ParamField path="options" type="object" optional>
+  Options with `recursive` and `mode` properties
+</ParamField>
+
+### mkdirSync()
+
+Creates a directory synchronously.
+
+```javascript
+mkdirSync(path, options);
+```
+
+### rmdir()
+
+Removes a directory asynchronously.
+
+```javascript
+await rmdir(path);
+```
+
+<ParamField path="path" type="string" required>
+  Directory path
+</ParamField>
+
+### rmdirSync()
+
+Removes a directory synchronously.
+
+```javascript
+rmdirSync(path);
+```
+
+### readdir()
+
+Reads the contents of a directory asynchronously.
+
+```javascript
+const files = await readdir(path);
+```
+
+<ParamField path="path" type="string" required>
+  Directory path
+</ParamField>
+
+<ResponseField name="return" type="Promise<Array<string>>">
+  Array of filenames
+</ResponseField>
+
+### readdirSync()
+
+Reads directory contents synchronously.
+
+```javascript
+const files = readdirSync(path);
+```
+
+<ResponseField name="return" type="Array<string>">
+  Array of filenames
+</ResponseField>
+
+## File Information
+
+### stat()
+
+Gets file status asynchronously.
+
+```javascript
+const stats = await stat(path);
+```
+
+<ParamField path="path" type="string" required>
+  File or directory path
+</ParamField>
+
+<ResponseField name="return" type="Promise<Stats>">
+  Stats object with file information
+</ResponseField>
+
+### statSync()
+
+Gets file status synchronously.
+
+```javascript
+const stats = statSync(path);
+```
+
+### Stats Object
+
+The Stats object contains:
+
+<ResponseField name="size" type="number">
+  File size in bytes
+</ResponseField>
+
+<ResponseField name="mode" type="number">
+  File mode (permissions)
+</ResponseField>
+
+<ResponseField name="uid" type="number">
+  User ID of owner
+</ResponseField>
+
+<ResponseField name="gid" type="number">
+  Group ID of owner
+</ResponseField>
+
+Methods:
+- `isFile()` - Returns true if regular file
+- `isDirectory()` - Returns true if directory
+- `isSymbolicLink()` - Returns true if symbolic link
+
+### exists()
+
+Checks if a path exists asynchronously.
+
+```javascript
+const exists = await exists(path);
+```
+
+<ParamField path="path" type="string" required>
+  Path to check
+</ParamField>
+
+<ResponseField name="return" type="Promise<boolean>">
+  True if path exists
+</ResponseField>
+
+### existsSync()
+
+Checks if a path exists synchronously.
+
+```javascript
+const exists = existsSync(path);
+```
+
+### access()
+
+Tests file access permissions asynchronously.
+
+```javascript
+await access(path, mode);
+```
+
+<ParamField path="path" type="string" required>
+  File path
+</ParamField>
+
+<ParamField path="mode" type="number" optional>
+  Access mode (F_OK, R_OK, W_OK, X_OK)
+</ParamField>
+
+### accessSync()
+
+Tests file access permissions synchronously.
+
+```javascript
+accessSync(path, mode);
+```
+
+## File Descriptors
+
+### readSync()
+
+Reads from a file descriptor synchronously.
+
+```javascript
+const bytesRead = readSync(fd, buffer, offset, length, position);
+```
+
+<ParamField path="fd" type="number" required>
+  File descriptor
+</ParamField>
+
+<ParamField path="buffer" type="Uint8Array" required>
+  Buffer to read into
+</ParamField>
+
+<ParamField path="offset" type="number" optional>
+  Offset in buffer
+</ParamField>
+
+<ParamField path="length" type="number" optional>
+  Number of bytes to read
+</ParamField>
+
+<ParamField path="position" type="number" optional>
+  Position in file
+</ParamField>
+
+### writeSync()
+
+Writes to a file descriptor synchronously.
+
+```javascript
+const bytesWritten = writeSync(fd, data, offset, length, position);
+```
+
+## Example
+
+```javascript
+import * as fs from 'ant:fs';
+
+// Read file
+const text = await fs.readFile('file.txt', 'utf8');
+console.log(text);
+
+// Write file
+await fs.writeFile('output.txt', 'Hello, world!');
+
+// Check if file exists
+if (fs.existsSync('config.json')) {
+  const data = fs.readFileSync('config.json', 'utf8');
+  const config = JSON.parse(data);
+}
+
+// Get file stats
+const stats = await fs.stat('package.json');
+console.log('Size:', stats.size);
+console.log('Is file:', stats.isFile());
+
+// List directory
+const files = await fs.readdir('.');
+for (const file of files) {
+  console.log(file);
+}
+
+// Create directory
+await fs.mkdir('data', { recursive: true });
+
+// Copy file
+fs.copyFileSync('source.txt', 'dest.txt');
+```

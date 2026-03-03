@@ -1,0 +1,627 @@
+---
+title: package.json Configuration
+description: Configuration options for Ant's package manager in package.json
+---
+
+Ant's package manager uses the standard `package.json` format with full npm compatibility, plus additional fields for security and configuration.
+
+## Basic Structure
+
+```json
+{
+  "name": "my-package",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "ant index.js",
+    "dev": "ant --watch index.js",
+    "test": "ant test.js"
+  },
+  "dependencies": {
+    "express": "^4.18.0",
+    "lodash": "^4.17.21"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0",
+    "@types/node": "^20.0.0"
+  },
+  "trustedDependencies": [
+    "puppeteer",
+    "esbuild"
+  ]
+}
+```
+
+## Required Fields
+
+### name
+
+Package name. For scoped packages, use `@scope/package-name`.
+
+```json
+{
+  "name": "my-package"
+}
+```
+
+**Rules:**
+- Must be lowercase
+- No spaces or special characters except `-` and `_`
+- Max 214 characters
+- Cannot start with `.` or `_`
+
+**Scoped packages:**
+
+```json
+{
+  "name": "@myorg/my-package"
+}
+```
+
+### version
+
+Package version following [semantic versioning](https://semver.org/).
+
+```json
+{
+  "version": "1.2.3"
+}
+```
+
+**Semver format:** `MAJOR.MINOR.PATCH`
+- **MAJOR**: Breaking changes
+- **MINOR**: New features (backwards compatible)
+- **PATCH**: Bug fixes
+
+## Module System
+
+### type
+
+Specify module system: `"module"` (ESM) or `"commonjs"` (CJS).
+
+```json
+{
+  "type": "module"
+}
+```
+
+- **`"module"`**: Use ESM (`import`/`export`), `.js` files treated as ESM
+- **`"commonjs"`** (default): Use CommonJS (`require`/`module.exports`)
+
+### main
+
+Entry point for the package.
+
+```json
+{
+  "main": "index.js"
+}
+```
+
+Used when someone `import`s or `require`s your package.
+
+### exports
+
+Define package entry points and subpath exports.
+
+```json
+{
+  "exports": {
+    ".": "./index.js",
+    "./utils": "./utils/index.js",
+    "./package.json": "./package.json"
+  }
+}
+```
+
+**Conditional exports:**
+
+```json
+{
+  "exports": {
+    ".": {
+      "import": "./index.mjs",
+      "require": "./index.cjs",
+      "types": "./index.d.ts"
+    }
+  }
+}
+```
+
+## Dependencies
+
+### dependencies
+
+Production dependencies required to run the package.
+
+```json
+{
+  "dependencies": {
+    "express": "^4.18.0",
+    "lodash": "4.17.21",
+    "@types/node": "~20.0.0",
+    "react": ">=18.0.0 <19.0.0"
+  }
+}
+```
+
+**Version specifiers:**
+
+| Specifier | Meaning | Example |
+|-----------|---------|----------|
+| `1.2.3` | Exact version | `"lodash": "4.17.21"` |
+| `^1.2.3` | Compatible (minor/patch) | `"express": "^4.18.0"` |
+| `~1.2.3` | Patch updates only | `"react": "~18.2.0"` |
+| `>=1.2.3` | Greater than or equal | `"node": ">=18.0.0"` |
+| `<2.0.0` | Less than | `"lodash": "<5.0.0"` |
+| `1.2.x` | Wildcard | `"express": "4.x"` |
+| `*` | Any version | `"util": "*"` |
+| `latest` | Latest version | `"typescript": "latest"` |
+
+**Range combinations:**
+
+```json
+{
+  "dependencies": {
+    "package": ">=1.0.0 <2.0.0",
+    "other": "^1.0.0 || ^2.0.0"
+  }
+}
+```
+
+### devDependencies
+
+Development-only dependencies (testing, building, linting).
+
+```json
+{
+  "devDependencies": {
+    "typescript": "^5.3.0",
+    "@types/node": "^20.0.0",
+    "vitest": "^1.0.0",
+    "eslint": "^8.0.0"
+  }
+}
+```
+
+These are:
+- Not installed in production environments
+- Installed with `ant install`
+- Added with `ant add -D <package>`
+
+### peerDependencies
+
+Dependencies that your package expects the consumer to provide.
+
+```json
+{
+  "peerDependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  }
+}
+```
+
+Used for:
+- Plugin systems
+- React/Vue component libraries
+- Build tool plugins
+
+### optionalDependencies
+
+Optional dependencies that may fail to install without breaking the build.
+
+```json
+{
+  "optionalDependencies": {
+    "fsevents": "^2.3.0"
+  }
+}
+```
+
+**Note:** If a package is in both `dependencies` and `optionalDependencies`, the optional one takes precedence.
+
+## Scripts
+
+Define runnable commands with `ant run <script>`.
+
+```json
+{
+  "scripts": {
+    "start": "ant index.js",
+    "dev": "ant --watch src/index.js",
+    "build": "ant build.js",
+    "test": "ant test.js",
+    "lint": "eslint .",
+    "format": "prettier --write ."
+  }
+}
+```
+
+**Run scripts:**
+
+```bash
+ant run dev
+ant run build
+ant run test
+```
+
+### Lifecycle Scripts
+
+Special scripts that run automatically during package operations:
+
+```json
+{
+  "scripts": {
+    "preinstall": "echo 'Before install'",
+    "install": "node-gyp rebuild",
+    "postinstall": "node scripts/setup.js",
+    "preuninstall": "echo 'Before uninstall'",
+    "uninstall": "node scripts/cleanup.js",
+    "postuninstall": "echo 'After uninstall'"
+  }
+}
+```
+
+**Security Note:** Ant requires explicit trust before running lifecycle scripts. See [trustedDependencies](#trusteddependencies).
+
+### Pre/Post Scripts
+
+Any script can have `pre` and `post` variants:
+
+```json
+{
+  "scripts": {
+    "prebuild": "rm -rf dist",
+    "build": "tsc",
+    "postbuild": "cp assets/* dist/"
+  }
+}
+```
+
+Running `ant run build` executes:
+1. `prebuild`
+2. `build`
+3. `postbuild`
+
+## Trusted Dependencies
+
+### trustedDependencies
+
+**Ant-specific field**: List of packages allowed to run lifecycle scripts.
+
+```json
+{
+  "trustedDependencies": [
+    "puppeteer",
+    "esbuild",
+    "sharp",
+    "@swc/core"
+  ]
+}
+```
+
+**Why?**
+
+Lifecycle scripts (`postinstall`, etc.) can execute arbitrary code during installation. This is a security risk:
+
+- Malicious packages can run harmful code
+- Compromised packages can be used for supply chain attacks
+- Scripts may have unintended side effects
+
+**Workflow:**
+
+1. Install package:
+   ```bash
+   ant add puppeteer
+   ```
+
+2. Ant detects lifecycle scripts and prompts:
+   ```
+   1 package needs to run lifecycle scripts:
+     • puppeteer (node install.js)
+
+   Run: ant trust <pkg> or ant trust --all
+   ```
+
+3. Explicitly trust the package:
+   ```bash
+   ant trust puppeteer
+   ```
+
+4. Ant adds to `trustedDependencies` and runs scripts:
+   ```
+   Added 1 package to trustedDependencies in package.json
+   Running lifecycle scripts for 1 package...
+
+   1 package trusted [823ms]
+   ```
+
+**Trust all at once:**
+
+```bash
+ant trust --all
+```
+
+**Common packages needing trust:**
+- `puppeteer` - Downloads Chromium
+- `esbuild` - Downloads native binaries
+- `sharp` - Downloads native binaries
+- `@swc/core` - Downloads native binaries
+- `canvas` - Builds native modules
+- `sqlite3` - Builds native modules
+
+## Binary Executables
+
+### bin
+
+Define executable commands provided by the package.
+
+```json
+{
+  "bin": {
+    "my-cli": "./cli.js",
+    "my-tool": "./bin/tool.js"
+  }
+}
+```
+
+**Single binary:**
+
+```json
+{
+  "name": "my-cli",
+  "bin": "./cli.js"
+}
+```
+
+This creates a symlink in `node_modules/.bin/my-cli`.
+
+**Usage:**
+
+```bash
+ant x my-cli --version
+```
+
+**Binary file requirements:**
+
+```javascript
+#!/usr/bin/env node
+
+console.log('Hello from my CLI');
+```
+
+Must:
+1. Have shebang line (`#!/usr/bin/env node`)
+2. Be executable (`chmod +x cli.js`)
+
+## Metadata Fields
+
+### description
+
+Short package description.
+
+```json
+{
+  "description": "A fast JavaScript runtime built with Zig"
+}
+```
+
+### keywords
+
+Array of keywords for discoverability.
+
+```json
+{
+  "keywords": ["runtime", "javascript", "typescript", "zig"]
+}
+```
+
+### author
+
+Package author.
+
+```json
+{
+  "author": "John Doe <john@example.com> (https://example.com)"
+}
+```
+
+**Object format:**
+
+```json
+{
+  "author": {
+    "name": "John Doe",
+    "email": "john@example.com",
+    "url": "https://example.com"
+  }
+}
+```
+
+### license
+
+SPDX license identifier.
+
+```json
+{
+  "license": "MIT"
+}
+```
+
+### repository
+
+Source code repository.
+
+```json
+{
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/user/repo.git"
+  }
+}
+```
+
+**Shorthand:**
+
+```json
+{
+  "repository": "github:user/repo"
+}
+```
+
+### homepage
+
+Project homepage URL.
+
+```json
+{
+  "homepage": "https://example.com"
+}
+```
+
+### bugs
+
+Bug tracker URL.
+
+```json
+{
+  "bugs": {
+    "url": "https://github.com/user/repo/issues",
+    "email": "bugs@example.com"
+  }
+}
+```
+
+## Files and Publishing
+
+### files
+
+Files to include when publishing to npm.
+
+```json
+{
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE"
+  ]
+}
+```
+
+**Always included:**
+- `package.json`
+- `README` / `README.*`
+- `LICENSE` / `LICENCE`
+- Main entry point
+
+**Always excluded:**
+- `.git`
+- `node_modules`
+- `.env` files
+
+### private
+
+Prevent accidental publishing to npm.
+
+```json
+{
+  "private": true
+}
+```
+
+## Engines
+
+Specify compatible runtime versions.
+
+```json
+{
+  "engines": {
+    "node": ">=18.0.0",
+    "ant": ">=0.1.0",
+    "npm": ">=9.0.0"
+  }
+}
+```
+
+Ant respects these constraints during installation.
+
+## Workspaces
+
+Monorepo workspace configuration (npm-compatible).
+
+```json
+{
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ]
+}
+```
+
+**Note:** Ant currently has limited workspace support. Full support is planned.
+
+## Complete Example
+
+```json
+{
+  "name": "@myorg/my-app",
+  "version": "2.1.0",
+  "description": "My awesome application",
+  "type": "module",
+  "main": "dist/index.js",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./utils": "./dist/utils/index.js"
+  },
+  "bin": {
+    "my-cli": "./dist/cli.js"
+  },
+  "scripts": {
+    "start": "ant src/index.js",
+    "dev": "ant --watch src/index.js",
+    "build": "tsc",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "express": "^4.18.0",
+    "lodash": "^4.17.21",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0",
+    "@types/node": "^20.0.0",
+    "@types/express": "^4.17.0",
+    "vitest": "^1.0.0",
+    "eslint": "^8.0.0",
+    "prettier": "^3.0.0"
+  },
+  "trustedDependencies": [
+    "esbuild"
+  ],
+  "keywords": ["app", "cli", "tool"],
+  "author": "John Doe <john@example.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/myorg/my-app.git"
+  },
+  "bugs": "https://github.com/myorg/my-app/issues",
+  "homepage": "https://myorg.dev/my-app",
+  "engines": {
+    "node": ">=18.0.0",
+    "ant": ">=0.1.0"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ]
+}
+```

@@ -1,0 +1,334 @@
+---
+title: Event loop and async execution
+description: Understand how Ant's event loop works and handles asynchronous operations
+---
+
+Ant implements a full-featured event loop that handles asynchronous operations, timers, I/O, and microtasks. The event loop is built on top of libuv and integrates seamlessly with JavaScript's async/await syntax.
+
+## Event loop architecture
+
+The event loop continuously polls for work and processes different types of tasks in priority order:
+
+```c
+// From reactor.c - work types
+typedef enum {
+  WORK_MICROTASKS       = 1 << 0,  // Promise callbacks, queueMicrotask
+  WORK_TIMERS           = 1 << 1,  // setTimeout, setInterval
+  WORK_IMMEDIATES       = 1 << 2,  // setImmediate
+  WORK_COROUTINES       = 1 << 3,  // Async functions
+  WORK_COROUTINES_READY = 1 << 4,  // Ready-to-run coroutines
+  WORK_FETCHES          = 1 << 5,  // fetch() operations
+  WORK_FS_OPS           = 1 << 6,  // File system operations
+  WORK_CHILD_PROCS      = 1 << 7,  // Child processes
+  WORK_READLINE         = 1 << 8,  // Readline interfaces
+  WORK_STDIN            = 1 << 9,  // Standard input
+} work_flags_t;
+```
+
+## Main event loop
+
+The core event loop implementation processes tasks until no work remains:
+
+```c
+// From reactor.c - main event loop
+void js_run_event_loop(ant_t *js) {
+drain:
+  while (event_loop_alive()) {
+    js_poll_events(js);
+    work_flags_t work = get_pending_work();
+    
+    if (work & WORK_BLOCKING) 
+      uv_run(uv_default_loop(), UV_RUN_NOWAIT);
+    else if ((work & WORK_ASYNC) || UV_CHECK_ALIVE) {
+      js_gc_maybe(js);
+      uv_run(uv_default_loop(), UV_RUN_ONCE);
+    } else break;
+  } 
+  
+  js_poll_events(js);
+  jsval_t code = js_mknum(0);
+  emit_process_event("beforeExit", &code, 1);
+  
+  if (event_loop_alive()) goto drain;
+}
+```
+
+### Event loop phases
+
+Each iteration of the event loop processes work in this order:
+
+1. **Immediates** - `setImmediate()` callbacks
+2. **Microtasks** - Promise callbacks and `queueMicrotask()`
+3. **Coroutines** - Ready async function continuations
+4. **I/O polling** - libuv handles timers, network, file system
+5. **Before exit** - `process.on('beforeExit')` event
+
+## Task scheduling
+
+### Microtasks
+
+Microtasks run before the next event loop iteration:
+
+```javascript
+queueMicrotask(() => {
+  console.log('Microtask');
+});
+
+Promise.resolve().then(() => {
+  console.log('Promise microtask');
+});
+
+console.log('Synchronous');
+
+// Output:
+// Synchronous
+// Microtask
+// Promise microtask
+```
+
+### Timers
+
+Timers schedule callbacks to run after a delay:
+
+```javascript
+// setTimeout: run once after delay
+setTimeout(() => {
+  console.log('Timeout');
+}, 1000);
+
+// setInterval: run repeatedly
+const interval = setInterval(() => {
+  console.log('Interval');
+}, 500);
+
+// clearInterval: stop repeating timer
+setTimeout(() => clearInterval(interval), 2000);
+```
+
+### Immediates
+
+`setImmediate()` schedules callbacks to run in the next event loop iteration:
+
+```javascript
+setImmediate(() => {
+  console.log('Immediate');
+});
+
+setTimeout(() => {
+  console.log('Timeout');
+}, 0);
+
+console.log('Synchronous');
+
+// Output:
+// Synchronous
+// Immediate
+// Timeout
+```
+
+## Asynchronous I/O
+
+### File system operations
+
+File system operations are non-blocking and integrate with the event loop:
+
+```javascript
+import { readFile, writeFile } from 'fs/promises';
+
+// Read file asynchronously
+const content = await readFile('file.txt', 'utf-8');
+console.log(content);
+
+// Write file asynchronously
+await writeFile('output.txt', 'Hello, Ant!');
+```
+
+### Network operations
+
+Network requests use the event loop for non-blocking I/O:
+
+```javascript
+// Fetch is fully async
+const response = await fetch('https://api.example.com/data');
+const data = await response.json();
+console.log(data);
+
+// Multiple concurrent requests
+const [users, posts] = await Promise.all([
+  fetch('/api/users').then(r => r.json()),
+  fetch('/api/posts').then(r => r.json())
+]);
+```
+
+### HTTP servers
+
+Servers handle requests asynchronously:
+
+```javascript
+import { createServer } from 'http';
+
+const server = createServer(async (req, res) => {
+  // Async request handling
+  const data = await fetchDataFromDatabase();
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify(data));
+});
+
+server.listen(3000);
+```
+
+## Event loop performance
+
+Ant's event loop is highly optimized for performance. Here's a benchmark example:
+
+```javascript
+// From examples/demo/event_loop.js
+const DURATION = 5_000;
+const origin = performance.now();
+let count = 0;
+
+function iter() {
+  count++;
+  if (performance.now() - origin < DURATION) 
+    setImmediate(iter);
+}
+
+iter();
+
+process.once('beforeExit', () => {
+  const elapsed = performance.now() - origin;
+  const rate = count / (elapsed / 1000);
+  console.log(`${(rate / 1_000_000).toFixed(2)}M iterations/sec`);
+});
+```
+
+Typical performance: **1-2M+ event loop iterations per second**
+
+## Coroutines and async functions
+
+Ant uses coroutines (powered by minicoro) to implement async/await:
+
+```c
+// From reactor.c - coroutine execution
+for (coroutine_t *c = pending_coroutines.head; c; c = c->next) {
+  if (c->is_ready && c->mco && mco_status(c->mco) == MCO_SUSPENDED) {
+    temp = c; 
+    break;
+  }
+}
+
+if (!temp) break;
+temp->is_ready = false;
+
+mco_result res;
+MCO_RESUME_SAVE(js, temp->mco, res);
+
+if (res != MCO_SUCCESS || mco_status(temp->mco) == MCO_DEAD) {
+  remove_coroutine(temp);
+  free_coroutine(temp);
+}
+```
+
+### Async function lifecycle
+
+1. **Creation**: Async function creates a coroutine
+2. **Suspension**: `await` suspends the coroutine
+3. **Resumption**: When awaited value resolves, coroutine resumes
+4. **Completion**: Coroutine finishes and returns value
+
+## Process events
+
+Ant supports process lifecycle events:
+
+```javascript
+// beforeExit: event loop is empty but process hasn't exited
+process.on('beforeExit', (code) => {
+  console.log('Process beforeExit with code:', code);
+  // Can schedule more async work here
+});
+
+// exit: process is about to exit (no more async work)
+process.on('exit', (code) => {
+  console.log('Process exit with code:', code);
+  // Only synchronous code here
+});
+```
+
+## Custom poll hooks
+
+You can register custom hooks to run during event loop polling:
+
+```c
+// From reactor.h
+typedef void (*reactor_poll_hook_t)(void *data);
+void js_reactor_set_poll_hook(reactor_poll_hook_t hook, void *data);
+```
+
+## Best practices
+
+<AccordionGroup>
+  <Accordion title="Avoid blocking the event loop">
+    CPU-intensive operations block the event loop and prevent other tasks from running. Consider:
+    
+    - Breaking work into chunks with `setImmediate()`
+    - Using worker threads for heavy computation
+    - Offloading to native code with FFI
+  </Accordion>
+
+  <Accordion title="Handle promise rejections">
+    Unhandled promise rejections can cause issues:
+    
+    ```javascript
+    // Always handle rejections
+    promise.catch(err => console.error(err));
+    
+    // Or use try/catch with async/await
+    try {
+      await riskyOperation();
+    } catch (err) {
+      console.error(err);
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Clean up resources">
+    Always clean up timers, intervals, and event listeners:
+    
+    ```javascript
+    const timer = setTimeout(() => {}, 1000);
+    // Later...
+    clearTimeout(timer);
+    
+    const interval = setInterval(() => {}, 100);
+    // Later...
+    clearInterval(interval);
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Debugging the event loop
+
+Enable event loop debugging:
+
+```bash
+# Enable VM debugging
+export ANT_DEBUG="dump/vm:all"
+
+# Run with verbose logging
+ant --verbose script.js
+```
+
+<Tip>
+Use `process.on('beforeExit')` to detect when the event loop is empty. This is useful for performance measurements and ensuring all async work completes.
+</Tip>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Async/await" icon="clock" href="/concepts/async-await">
+    Deep dive into async/await implementation
+  </Card>
+  <Card title="Runtime architecture" icon="microchip" href="/concepts/runtime">
+    Understand the runtime internals
+  </Card>
+</CardGroup>

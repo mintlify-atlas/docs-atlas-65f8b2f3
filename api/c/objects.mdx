@@ -1,0 +1,517 @@
+---
+title: Object Manipulation
+description: Create and manipulate JavaScript objects and arrays from C
+---
+
+The Ant C API provides comprehensive functions for working with JavaScript objects and arrays.
+
+## Object Properties
+
+### js_set
+
+Sets a property on an object.
+
+```c
+void js_set(ant_t *js, jsval_t obj, const char *key, jsval_t val);
+```
+
+<ParamField path="js" type="ant_t*" required>
+  The runtime instance.
+</ParamField>
+
+<ParamField path="obj" type="jsval_t" required>
+  The object to modify.
+</ParamField>
+
+<ParamField path="key" type="const char*" required>
+  The property name (null-terminated string).
+</ParamField>
+
+<ParamField path="val" type="jsval_t" required>
+  The value to set.
+</ParamField>
+
+```c
+jsval_t obj = js_mkobj(js);
+js_set(js, obj, "name", js_mkstr(js, "Alice", 5));
+js_set(js, obj, "age", js_mknum(30));
+js_set(js, obj, "active", js_true);
+```
+
+### js_get
+
+Gets a property from an object.
+
+```c
+jsval_t js_get(ant_t *js, jsval_t obj, const char *key);
+```
+
+<ParamField path="js" type="ant_t*" required>
+  The runtime instance.
+</ParamField>
+
+<ParamField path="obj" type="jsval_t" required>
+  The object to read from.
+</ParamField>
+
+<ParamField path="key" type="const char*" required>
+  The property name.
+</ParamField>
+
+**Returns:** The property value, or `undefined` if not found.
+
+```c
+jsval_t name = js_get(js, obj, "name");
+if (vtype(name) == T_STR) {
+  printf("Name: %s\n", js_str(js, name));
+}
+```
+
+### js_del
+
+Deletes a property from an object.
+
+```c
+bool js_del(ant_t *js, jsval_t obj, const char *key);
+```
+
+<ParamField path="js" type="ant_t*" required>
+  The runtime instance.
+</ParamField>
+
+<ParamField path="obj" type="jsval_t" required>
+  The object to modify.
+</ParamField>
+
+<ParamField path="key" type="const char*" required>
+  The property name to delete.
+</ParamField>
+
+**Returns:** `true` if the property was deleted, `false` otherwise.
+
+```c
+js_set(js, obj, "temp", js_mknum(42));
+js_del(js, obj, "temp");
+```
+
+### js_setprop
+
+Sets a property with a dynamic key.
+
+```c
+jsval_t js_setprop(ant_t *js, jsval_t obj, jsval_t key, jsval_t val);
+```
+
+<ParamField path="js" type="ant_t*" required>
+  The runtime instance.
+</ParamField>
+
+<ParamField path="obj" type="jsval_t" required>
+  The object to modify.
+</ParamField>
+
+<ParamField path="key" type="jsval_t" required>
+  The property key (can be string, symbol, or number).
+</ParamField>
+
+<ParamField path="val" type="jsval_t" required>
+  The value to set.
+</ParamField>
+
+**Returns:** The set value.
+
+```c
+jsval_t key = js_mkstr(js, "dynamic", 7);
+js_setprop(js, obj, key, js_mknum(100));
+```
+
+## Property Iteration
+
+### js_prop_iter_begin
+
+Begins iteration over object properties.
+
+```c
+ant_iter_t js_prop_iter_begin(ant_t *js, jsval_t obj);
+```
+
+<ParamField path="js" type="ant_t*" required>
+  The runtime instance.
+</ParamField>
+
+<ParamField path="obj" type="jsval_t" required>
+  The object to iterate over.
+</ParamField>
+
+**Returns:** An iterator handle.
+
+### js_prop_iter_next
+
+Advances to the next property.
+
+```c
+bool js_prop_iter_next(
+  ant_iter_t *iter,
+  const char **key,
+  size_t *key_len,
+  jsval_t *value
+);
+```
+
+<ParamField path="iter" type="ant_iter_t*" required>
+  The iterator.
+</ParamField>
+
+<ParamField path="key" type="const char**" required>
+  Output: pointer to the key string.
+</ParamField>
+
+<ParamField path="key_len" type="size_t*" required>
+  Output: length of the key.
+</ParamField>
+
+<ParamField path="value" type="jsval_t*" required>
+  Output: the property value.
+</ParamField>
+
+**Returns:** `true` if a property was retrieved, `false` if iteration is complete.
+
+### js_prop_iter_end
+
+Ends property iteration and frees resources.
+
+```c
+void js_prop_iter_end(ant_iter_t *iter);
+```
+
+<ParamField path="iter" type="ant_iter_t*" required>
+  The iterator to free.
+</ParamField>
+
+### Example
+
+```c
+const char *code = "({ name: 'Alice', age: 30, city: 'NYC' })";
+jsval_t obj = js_eval_bytecode_eval(js, code, strlen(code));
+
+ant_iter_t iter = js_prop_iter_begin(js, obj);
+const char *key;
+size_t key_len;
+jsval_t value;
+
+printf("Object properties:\n");
+while (js_prop_iter_next(&iter, &key, &key_len, &value)) {
+  printf("  %.*s = %s\n", (int)key_len, key, js_str(js, value));
+}
+
+js_prop_iter_end(&iter);
+```
+
+## Array Operations
+
+### js_arr_push
+
+Appends a value to an array.
+
+```c
+void js_arr_push(ant_t *js, jsval_t arr, jsval_t val);
+```
+
+<ParamField path="js" type="ant_t*" required>
+  The runtime instance.
+</ParamField>
+
+<ParamField path="arr" type="jsval_t" required>
+  The array to modify.
+</ParamField>
+
+<ParamField path="val" type="jsval_t" required>
+  The value to append.
+</ParamField>
+
+```c
+jsval_t arr = js_mkarr(js);
+js_arr_push(js, arr, js_mknum(10));
+js_arr_push(js, arr, js_mknum(20));
+js_arr_push(js, arr, js_mknum(30));
+```
+
+### js_arr_len
+
+Returns the length of an array.
+
+```c
+jsoff_t js_arr_len(ant_t *js, jsval_t arr);
+```
+
+<ParamField path="js" type="ant_t*" required>
+  The runtime instance.
+</ParamField>
+
+<ParamField path="arr" type="jsval_t" required>
+  The array.
+</ParamField>
+
+**Returns:** The array length.
+
+```c
+jsoff_t len = js_arr_len(js, arr);
+printf("Array length: %llu\n", (unsigned long long)len);
+```
+
+### js_arr_get
+
+Gets an element from an array by index.
+
+```c
+jsval_t js_arr_get(ant_t *js, jsval_t arr, jsoff_t idx);
+```
+
+<ParamField path="js" type="ant_t*" required>
+  The runtime instance.
+</ParamField>
+
+<ParamField path="arr" type="jsval_t" required>
+  The array.
+</ParamField>
+
+<ParamField path="idx" type="jsoff_t" required>
+  The zero-based index.
+</ParamField>
+
+**Returns:** The element value, or `undefined` if out of bounds.
+
+```c
+jsoff_t len = js_arr_len(js, arr);
+for (jsoff_t i = 0; i < len; i++) {
+  jsval_t item = js_arr_get(js, arr, i);
+  printf("  [%llu] = %s\n", (unsigned long long)i, js_str(js, item));
+}
+```
+
+## Symbol Properties
+
+### js_set_sym
+
+Sets a symbol-keyed property.
+
+```c
+void js_set_sym(ant_t *js, jsval_t obj, jsval_t sym, jsval_t val);
+```
+
+<ParamField path="js" type="ant_t*" required>
+  The runtime instance.
+</ParamField>
+
+<ParamField path="obj" type="jsval_t" required>
+  The object to modify.
+</ParamField>
+
+<ParamField path="sym" type="jsval_t" required>
+  The symbol key.
+</ParamField>
+
+<ParamField path="val" type="jsval_t" required>
+  The value to set.
+</ParamField>
+
+```c
+jsval_t sym = js_mksym(js, "hidden");
+jsval_t obj = js_mkobj(js);
+js_set_sym(js, obj, sym, js_mknum(42));
+```
+
+### js_get_sym
+
+Gets a symbol-keyed property.
+
+```c
+jsval_t js_get_sym(ant_t *js, jsval_t obj, jsval_t sym);
+```
+
+<ParamField path="js" type="ant_t*" required>
+  The runtime instance.
+</ParamField>
+
+<ParamField path="obj" type="jsval_t" required>
+  The object to read from.
+</ParamField>
+
+<ParamField path="sym" type="jsval_t" required>
+  The symbol key.
+</ParamField>
+
+**Returns:** The property value.
+
+```c
+jsval_t value = js_get_sym(js, obj, sym);
+```
+
+## Prototypes
+
+### js_set_proto
+
+Sets an object's prototype.
+
+```c
+void js_set_proto(ant_t *js, jsval_t obj, jsval_t proto);
+```
+
+<ParamField path="js" type="ant_t*" required>
+  The runtime instance.
+</ParamField>
+
+<ParamField path="obj" type="jsval_t" required>
+  The object to modify.
+</ParamField>
+
+<ParamField path="proto" type="jsval_t" required>
+  The new prototype object.
+</ParamField>
+
+```c
+jsval_t proto = js_mkobj(js);
+js_set(js, proto, "method", js_mkfun(my_method));
+
+jsval_t obj = js_mkobj(js);
+js_set_proto(js, obj, proto);
+```
+
+### js_get_proto
+
+Gets an object's prototype.
+
+```c
+jsval_t js_get_proto(ant_t *js, jsval_t obj);
+```
+
+<ParamField path="js" type="ant_t*" required>
+  The runtime instance.
+</ParamField>
+
+<ParamField path="obj" type="jsval_t" required>
+  The object.
+</ParamField>
+
+**Returns:** The prototype object.
+
+```c
+jsval_t proto = js_get_proto(js, obj);
+```
+
+### js_get_ctor_proto
+
+Gets the prototype of a constructor by name.
+
+```c
+jsval_t js_get_ctor_proto(ant_t *js, const char *name, size_t len);
+```
+
+<ParamField path="js" type="ant_t*" required>
+  The runtime instance.
+</ParamField>
+
+<ParamField path="name" type="const char*" required>
+  The constructor name.
+</ParamField>
+
+<ParamField path="len" type="size_t" required>
+  Length of the name.
+</ParamField>
+
+**Returns:** The constructor's prototype.
+
+```c
+jsval_t array_proto = js_get_ctor_proto(js, "Array", 5);
+```
+
+## Advanced Operations
+
+### js_merge_obj
+
+Merges properties from one object to another.
+
+```c
+void js_merge_obj(ant_t *js, jsval_t dst, jsval_t src);
+```
+
+<ParamField path="js" type="ant_t*" required>
+  The runtime instance.
+</ParamField>
+
+<ParamField path="dst" type="jsval_t" required>
+  The destination object.
+</ParamField>
+
+<ParamField path="src" type="jsval_t" required>
+  The source object.
+</ParamField>
+
+```c
+jsval_t defaults = js_mkobj(js);
+js_set(js, defaults, "timeout", js_mknum(5000));
+js_set(js, defaults, "retries", js_mknum(3));
+
+jsval_t config = js_mkobj(js);
+js_set(js, config, "timeout", js_mknum(10000));
+
+js_merge_obj(js, defaults, config);
+// defaults now has timeout=10000, retries=3
+```
+
+## Complete Example
+
+```c
+#include <ant.h>
+#include <stdio.h>
+#include <string.h>
+
+int main(void) {
+  volatile char stack_base;
+  ant_t *js = js_create_dynamic();
+  js_setstackbase(js, (void *)&stack_base);
+  
+  char *argv[] = { "app", NULL };
+  ant_runtime_init(js, 1, argv, NULL);
+  
+  jsval_t global = js_glob(js);
+  
+  // Create a configuration object
+  jsval_t config = js_mkobj(js);
+  js_set(js, config, "debug", js_true);
+  js_set(js, config, "version", js_mknum(1.0));
+  js_set(js, config, "name", js_mkstr(js, "MyApp", 5));
+  
+  // Create an array
+  jsval_t numbers = js_mkarr(js);
+  js_arr_push(js, numbers, js_mknum(10));
+  js_arr_push(js, numbers, js_mknum(20));
+  js_arr_push(js, numbers, js_mknum(30));
+  js_set(js, config, "numbers", numbers);
+  
+  // Add to global
+  js_set(js, global, "config", config);
+  
+  // Access from JavaScript
+  const char *code = 
+    "config.name + ' v' + config.version + " 
+    "' - sum: ' + config.numbers.reduce((a,b) => a+b, 0)";
+  jsval_t result = js_eval_bytecode_eval(js, code, strlen(code));
+  printf("Result: %s\n", js_str(js, result));
+  
+  // Iterate over properties
+  printf("\nConfig properties:\n");
+  ant_iter_t iter = js_prop_iter_begin(js, config);
+  const char *key;
+  size_t key_len;
+  jsval_t value;
+  
+  while (js_prop_iter_next(&iter, &key, &key_len, &value)) {
+    printf("  %.*s = %s\n", (int)key_len, key, js_str(js, value));
+  }
+  js_prop_iter_end(&iter);
+  
+  js_destroy(js);
+  return 0;
+}
+```

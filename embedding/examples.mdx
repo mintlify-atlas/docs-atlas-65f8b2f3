@@ -1,0 +1,532 @@
+---
+title: Embedding Examples
+description: Practical examples of embedding Ant in C applications
+---
+
+## Building the Examples
+
+The Ant repository includes a comprehensive embedding example with 11 different use cases.
+
+<Steps>
+  <Step title="Build libant">
+    ```bash
+    ./libant/build.sh
+    ```
+  </Step>
+  
+  <Step title="Build the example">
+    ```bash
+    ./libant/example.sh
+    ```
+  </Step>
+  
+  <Step title="Run the example">
+    ```bash
+    ./libant/dist/embed
+    ```
+  </Step>
+</Steps>
+
+The full example source is located at `examples/embed/embed.c` (475 lines).
+
+## Example 1: Basic Evaluation
+
+Evaluate simple JavaScript expressions and retrieve results.
+
+```c
+#include <ant.h>
+#include <stdio.h>
+#include <string.h>
+
+static void example_basic_eval(void) {
+  // Create runtime with stack base
+  volatile char stack_base;
+  ant_t *js = js_create_dynamic();
+  js_setstackbase(js, (void *)&stack_base);
+  
+  // Initialize runtime
+  static char *default_argv[] = { "embed_example", NULL };
+  ant_runtime_init(js, 1, default_argv, NULL);
+  
+  // Evaluate JavaScript expression
+  const char *code = "1 + 2 * 3";
+  jsval_t result = js_eval_bytecode_eval(js, code, strlen(code));
+  
+  // Check result type
+  if (vtype(result) == T_NUM) {
+    printf("Result: %g\n", js_getnum(result));
+  } else if (vtype(result) == T_ERR) {
+    printf("Error: %s\n", js_str(js, result));
+  }
+  
+  js_destroy(js);
+}
+```
+
+## Example 2: Exposing C Functions
+
+Make C functions callable from JavaScript.
+
+```c
+// C function that adds two numbers
+static jsval_t my_add(ant_t *js, jsval_t *args, int nargs) {
+  if (!js_chkargs(args, nargs, "dd")) {
+    return js_mkerr(js, "add() expects two numbers");
+  }
+  
+  double a = js_getnum(args[0]);
+  double b = js_getnum(args[1]);
+  
+  return js_mknum(a + b);
+}
+
+// C function that greets a person
+static jsval_t my_greet(ant_t *js, jsval_t *args, int nargs) {
+  if (nargs < 1 || vtype(args[0]) != T_STR) {
+    return js_mkerr(js, "greet() expects a string");
+  }
+  
+  size_t len;
+  char *name = js_getstr(js, args[0], &len);
+  
+  char buf[256];
+  snprintf(buf, sizeof(buf), "Hello, %s!", name);
+  
+  return js_mkstr(js, buf, strlen(buf));
+}
+
+// C function that creates a point object
+static jsval_t my_create_point(ant_t *js, jsval_t *args, int nargs) {
+  if (!js_chkargs(args, nargs, "dd")) {
+    return js_mkerr(js, "createPoint() expects two numbers");
+  }
+  
+  jsval_t obj = js_mkobj(js);
+  js_set(js, obj, "x", args[0]);
+  js_set(js, obj, "y", args[1]);
+  
+  return obj;
+}
+
+static void example_c_functions(void) {
+  volatile char stack_base;
+  ant_t *js = create_js_runtime((void *)&stack_base);
+  
+  // Expose functions to JavaScript
+  jsval_t global = js_glob(js);
+  js_set(js, global, "add", js_mkfun(my_add));
+  js_set(js, global, "greet", js_mkfun(my_greet));
+  js_set(js, global, "createPoint", js_mkfun(my_create_point));
+  
+  // Call from JavaScript
+  const char *code1 = "add(10, 32)";
+  jsval_t r1 = js_eval_bytecode_eval(js, code1, strlen(code1));
+  printf("add(10, 32) = %g\n", js_getnum(r1));
+  
+  const char *code2 = "greet('World')";
+  jsval_t r2 = js_eval_bytecode_eval(js, code2, strlen(code2));
+  printf("greet('World') = %s\n", js_str(js, r2));
+  
+  const char *code3 = "let p = createPoint(3, 4); p.x * p.x + p.y * p.y";
+  jsval_t r3 = js_eval_bytecode_eval(js, code3, strlen(code3));
+  printf("distance² = %g\n", js_getnum(r3));
+  
+  js_destroy(js);
+}
+```
+
+## Example 3: Objects and Arrays
+
+Create and manipulate JavaScript objects and arrays from C.
+
+```c
+static void example_objects_arrays(void) {
+  volatile char stack_base;
+  ant_t *js = create_js_runtime((void *)&stack_base);
+  
+  jsval_t global = js_glob(js);
+  
+  // Create a configuration object
+  jsval_t config = js_mkobj(js);
+  js_set(js, config, "debug", js_true);
+  js_set(js, config, "version", js_mknum(1.0));
+  js_set(js, config, "name", js_mkstr(js, "MyApp", 5));
+  js_set(js, global, "config", config);
+  
+  // Create an array with numbers
+  jsval_t arr = js_mkarr(js);
+  js_arr_push(js, arr, js_mknum(10));
+  js_arr_push(js, arr, js_mknum(20));
+  js_arr_push(js, arr, js_mknum(30));
+  js_set(js, global, "numbers", arr);
+  
+  // Use them in JavaScript
+  const char *code = "config.name + ' v' + config.version + ' - sum: ' + numbers.reduce((a,b) => a+b, 0)";
+  jsval_t result = js_eval_bytecode_eval(js, code, strlen(code));
+  printf("Result: %s\n", js_str(js, result));
+  
+  // Read properties back in C
+  jsval_t name_val = js_get(js, config, "name");
+  printf("config.name: %s\n", js_str(js, name_val));
+  
+  jsval_t debug_val = js_get(js, config, "debug");
+  printf("config.debug: %s\n", js_str(js, debug_val));
+  
+  js_destroy(js);
+}
+```
+
+## Example 4: Error Handling
+
+Properly handle JavaScript errors in C.
+
+```c
+static void example_error_handling(void) {
+  volatile char stack_base;
+  ant_t *js = create_js_runtime((void *)&stack_base);
+  
+  // Syntax error
+  const char *bad_code = "let x = {";
+  jsval_t r1 = js_eval_bytecode_eval(js, bad_code, strlen(bad_code));
+  if (vtype(r1) == T_ERR) {
+    printf("Syntax error: %s\n", js_str(js, r1));
+  }
+  
+  // Reference error
+  const char *ref_err = "undefinedVariable + 1";
+  jsval_t r2 = js_eval_bytecode_eval(js, ref_err, strlen(ref_err));
+  if (vtype(r2) == T_ERR) {
+    printf("Reference error: %s\n", js_str(js, r2));
+  }
+  
+  // Type error from C function
+  jsval_t global = js_glob(js);
+  js_set(js, global, "add", js_mkfun(my_add));
+  
+  const char *type_err = "add('not', 'numbers')";
+  jsval_t r3 = js_eval_bytecode_eval(js, type_err, strlen(type_err));
+  if (vtype(r3) == T_ERR) {
+    printf("Type error: %s\n", js_str(js, r3));
+  }
+  
+  js_destroy(js);
+}
+```
+
+## Example 5: Calling JavaScript from C
+
+Define functions in JavaScript and call them from C.
+
+```c
+static void example_call_js_from_c(void) {
+  volatile char stack_base;
+  ant_t *js = create_js_runtime((void *)&stack_base);
+  
+  // Define JavaScript functions
+  const char *code =
+    "function multiply(a, b) {"
+    "    return a * b;"
+    "}"
+    "function formatName(first, last) {"
+    "    return last + ', ' + first;"
+    "}";
+  
+  js_eval_bytecode_eval(js, code, strlen(code));
+  
+  // Get function references
+  jsval_t glob = js_glob(js);
+  jsval_t multiply_fn = js_get(js, glob, "multiply");
+  jsval_t format_fn = js_get(js, glob, "formatName");
+  
+  // Call multiply(6, 7)
+  jsval_t args1[] = { js_mknum(6), js_mknum(7) };
+  jsval_t result1 = sv_vm_call(js->vm, js, multiply_fn, js_mkundef(), args1, 2, NULL, false);
+  printf("multiply(6, 7) = %g\n", js_getnum(result1));
+  
+  // Call formatName('John', 'Doe')
+  jsval_t args2[] = {
+    js_mkstr(js, "John", 4),
+    js_mkstr(js, "Doe", 3)
+  };
+  jsval_t result2 = sv_vm_call(js->vm, js, format_fn, js_mkundef(), args2, 2, NULL, false);
+  printf("formatName('John', 'Doe') = %s\n", js_str(js, result2));
+  
+  js_destroy(js);
+}
+```
+
+## Example 6: Iterating Properties
+
+Iterate over object properties from C.
+
+```c
+static void example_iterate_properties(void) {
+  volatile char stack_base;
+  ant_t *js = create_js_runtime((void *)&stack_base);
+  
+  // Create an object with properties
+  const char *code = "({ name: 'Alice', age: 30, city: 'NYC' })";
+  jsval_t obj = js_eval_bytecode_eval(js, code, strlen(code));
+  
+  // Iterate over properties
+  ant_iter_t iter = js_prop_iter_begin(js, obj);
+  const char *key;
+  size_t key_len;
+  jsval_t value;
+  
+  printf("Object properties:\n");
+  while (js_prop_iter_next(&iter, &key, &key_len, &value)) {
+    printf("  • %.*s = %s\n", (int)key_len, key, js_str(js, value));
+  }
+  js_prop_iter_end(&iter);
+  
+  js_destroy(js);
+}
+```
+
+## Example 7: Using 'this' Context
+
+Create methods that access the `this` context.
+
+```c
+static jsval_t method_get_full_name(ant_t *js, jsval_t *args, int nargs) {
+  (void)args; (void)nargs;
+  
+  // Access 'this' object
+  jsval_t this_obj = js_getthis(js);
+  
+  jsval_t first = js_get(js, this_obj, "firstName");
+  jsval_t last = js_get(js, this_obj, "lastName");
+  
+  size_t first_len, last_len;
+  char *first_str = js_getstr(js, first, &first_len);
+  char *last_str = js_getstr(js, last, &last_len);
+  
+  char buf[256];
+  snprintf(buf, sizeof(buf), "%s %s", first_str, last_str);
+  
+  return js_mkstr(js, buf, strlen(buf));
+}
+
+static void example_this_context(void) {
+  volatile char stack_base;
+  ant_t *js = create_js_runtime((void *)&stack_base);
+  
+  // Create object with method
+  jsval_t person = js_mkobj(js);
+  js_set(js, person, "firstName", js_mkstr(js, "Jane", 4));
+  js_set(js, person, "lastName", js_mkstr(js, "Smith", 5));
+  js_set(js, person, "getFullName", js_mkfun(method_get_full_name));
+  
+  js_set(js, js_glob(js), "person", person);
+  
+  // Call method
+  const char *code = "person.getFullName()";
+  jsval_t result = js_eval_bytecode_eval(js, code, strlen(code));
+  printf("person.getFullName() = %s\n", js_str(js, result));
+  
+  js_destroy(js);
+}
+```
+
+## Example 8: Stateful Session
+
+Maintain state across multiple evaluations.
+
+```c
+static void example_stateful_session(void) {
+  volatile char stack_base;
+  ant_t *js = create_js_runtime((void *)&stack_base);
+  
+  // Execute multiple scripts that share state
+  const char *scripts[] = {
+    "let counter = 0;",
+    "function increment() { return ++counter; }",
+    "function getCount() { return counter; }",
+    "increment(); increment(); increment();",
+    "getCount()"
+  };
+  
+  jsval_t result = js_mkundef();
+  for (int i = 0; i < 5; i++) {
+    result = js_eval_bytecode_eval(js, scripts[i], strlen(scripts[i]));
+    if (vtype(result) == T_ERR) {
+      printf("Error in script %d: %s\n", i, js_str(js, result));
+      break;
+    }
+  }
+  
+  printf("Final count: %g\n", js_getnum(result));
+  
+  js_destroy(js);
+}
+```
+
+## Example 9: Async & Event Loop
+
+Handle asynchronous operations with timers and promises.
+
+```c
+static void example_async_event_loop(void) {
+  volatile char stack_base;
+  ant_t *js = create_js_runtime((void *)&stack_base);
+  
+  // Initialize required modules
+  init_symbol_module();
+  init_builtin_module();
+  init_timer_module();
+  
+  const char *code =
+    "let results = [];"
+    ""
+    "setTimeout(() => {"
+    "  results.push('timer 1 (50ms)');"
+    "}, 50);"
+    ""
+    "setTimeout(() => {"
+    "  results.push('timer 2 (10ms)');"
+    "}, 10);"
+    ""
+    "Promise.resolve('promise 1').then(v => {"
+    "  results.push(v);"
+    "});"
+    ""
+    "queueMicrotask(() => {"
+    "  results.push('microtask');"
+    "});"
+    ""
+    "results.push('sync');";
+  
+  jsval_t result = js_eval_bytecode_eval(js, code, strlen(code));
+  if (vtype(result) == T_ERR) {
+    printf("Error: %s\n", js_str(js, result));
+    js_destroy(js);
+    return;
+  }
+  
+  // Run the event loop
+  js_run_event_loop(js);
+  
+  // Check execution order
+  jsval_t results = js_get(js, js_glob(js), "results");
+  
+  printf("Execution order:\n");
+  jsoff_t len = js_arr_len(js, results);
+  for (jsoff_t i = 0; i < len; i++) {
+    jsval_t item = js_arr_get(js, results, i);
+    printf("  %llu. %s\n", (unsigned long long)i + 1, js_str(js, item));
+  }
+  
+  js_destroy(js);
+}
+```
+
+## Example 10: Console Logging
+
+Enable console.log, console.warn, and console.error.
+
+```c
+static void example_console_logging(void) {
+  volatile char stack_base;
+  ant_t *js = create_js_runtime((void *)&stack_base);
+  
+  // Initialize console module
+  init_console_module();
+  
+  const char *code =
+    "console.log('Hello from JavaScript!');"
+    "console.log('Number:', 42, 'Boolean:', true);"
+    "console.log('Object:', { name: 'test', value: 123 });"
+    "console.log('Array:', [1, 2, 3]);"
+    "console.warn('This is a warning');"
+    "console.error('This is an error');"
+    "'done'";
+  
+  jsval_t result = js_eval_bytecode_eval(js, code, strlen(code));
+  if (vtype(result) == T_ERR) {
+    printf("Error: %s\n", js_str(js, result));
+  }
+  
+  js_destroy(js);
+}
+```
+
+## Example 11: Global Object
+
+Work with the global object and globalThis.
+
+```c
+static void example_global_this(void) {
+  volatile char stack_base;
+  ant_t *js = create_js_runtime((void *)&stack_base);
+  
+  init_console_module();
+  
+  // Set global variables from C
+  jsval_t global = js_glob(js);
+  js_set(js, global, "myNumber", js_mknum(42));
+  js_set(js, global, "myString", js_mkstr(js, "hello from C", 12));
+  js_set(js, global, "myBool", js_true);
+  
+  jsval_t myObj = js_mkobj(js);
+  js_set(js, myObj, "a", js_mknum(1));
+  js_set(js, myObj, "b", js_mknum(2));
+  js_set(js, global, "myObject", myObj);
+  
+  // Access from JavaScript
+  const char *code =
+    "console.log('globalThis.myNumber:', globalThis.myNumber);"
+    "console.log('globalThis.myString:', globalThis.myString);"
+    "console.log('globalThis.myBool:', globalThis.myBool);"
+    "console.log('globalThis.myObject:', globalThis.myObject);"
+    ""
+    "globalThis.addedFromJS = 'I was added from JavaScript';"
+    "console.log('globalThis.addedFromJS:', globalThis.addedFromJS);"
+    ""
+    "console.log('All custom globals:');"
+    "console.log('  myNumber:', myNumber);"
+    "console.log('  myString:', myString);"
+    "console.log('  myBool:', myBool);"
+    "console.log('  myObject:', myObject);"
+    "console.log('  addedFromJS:', addedFromJS);";
+  
+  jsval_t result = js_eval_bytecode_eval(js, code, strlen(code));
+  if (vtype(result) == T_ERR) {
+    printf("Error: %s\n", js_str(js, result));
+  }
+  
+  // Read back values set from JavaScript
+  jsval_t added = js_get(js, global, "addedFromJS");
+  printf("\nRead from C: addedFromJS = %s\n", js_str(js, added));
+  
+  js_destroy(js);
+}
+```
+
+## Complete Example Program
+
+All 11 examples are available in the repository at `examples/embed/embed.c`. You can compile and run them using:
+
+```bash
+# Build libant
+./libant/build.sh
+
+# Build the embedding example
+./libant/example.sh
+
+# Run all examples
+./libant/dist/embed
+```
+
+The example demonstrates:
+- Basic evaluation
+- Exposing C functions to JavaScript
+- Creating and manipulating objects and arrays
+- Error handling
+- Calling JavaScript functions from C
+- Property iteration
+- Using the 'this' context
+- Maintaining state across evaluations
+- Async operations with event loop
+- Console logging
+- Working with the global object

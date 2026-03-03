@@ -1,0 +1,213 @@
+---
+title: Building HTTP Servers
+description: Create fast HTTP servers with Ant.serve() and handle requests with routing
+---
+
+## Overview
+
+Ant provides a built-in HTTP server through the `Ant.serve()` function. The server is powered by libuv and includes automatic gzip compression, custom headers, and a simple request/response API.
+
+## Basic Server
+
+Create a simple HTTP server that listens on port 8000:
+
+```javascript
+function handleRequest(c) {
+  c.res.body('Hello, World!');
+}
+
+Ant.serve(8000, handleRequest);
+console.log('Server running on http://localhost:8000');
+```
+
+## Request Object
+
+The request handler receives a context object `c` with a `req` property containing:
+
+- `method` - HTTP method (GET, POST, etc.)
+- `uri` - Request URI/path
+- `query` - Query string
+- `body` - Request body as string
+- `header(name)` - Get request header value
+
+```javascript
+Ant.serve(8000, c => {
+  console.log(`${c.req.method} ${c.req.uri}`);
+  const userAgent = c.req.header('User-Agent');
+  c.res.body(`Your user agent: ${userAgent}`);
+});
+```
+
+## Response Methods
+
+The response object `c.res` provides several methods:
+
+### Send Plain Text
+
+```javascript
+c.res.body('Hello, World!');
+c.res.body('Not found', 404);
+c.res.body('Custom type', 200, 'text/custom');
+```
+
+### Send HTML
+
+```javascript
+c.res.html('<h1>Welcome</h1>');
+c.res.html('<p>Error</p>', 500);
+```
+
+### Send JSON
+
+```javascript
+c.res.json({ users: [], count: 0 });
+c.res.json({ error: 'Invalid request' }, 400);
+```
+
+### Redirects
+
+```javascript
+c.res.redirect('/new-location');
+c.res.redirect('/moved', 301); // Permanent redirect
+```
+
+### Custom Headers
+
+```javascript
+c.res.header('X-Custom-Header', 'value');
+c.res.header('X-Powered-By', 'Ant');
+c.res.body('Response with headers');
+```
+
+## Routing Example
+
+Here's a complete example with routing from the Ant repository:
+
+```javascript
+import { createRouter, addRoute, findRoute } from './rou3';
+
+const router = createRouter();
+
+addRoute(router, 'GET', '/', c => {
+  c.res.body(`Welcome to Ant ${Ant.version}!`);
+});
+
+addRoute(router, 'GET', '/hello', async c => {
+  return c.res.body('Hello, World!');
+});
+
+addRoute(router, 'GET', '/users/:id', async c => {
+  return c.res.body(`User ID: ${c.params.id}`);
+});
+
+addRoute(router, 'GET', '/api/users', async c => {
+  return c.res.json({ users: [] });
+});
+
+addRoute(router, 'GET', '/files/**:path', async c => {
+  return c.res.html(`<div>${c.params.path}</div>`);
+});
+
+async function handleRequest(c) {
+  console.log('request:', c.req.method, c.req.uri);
+  const result = findRoute(router, c.req.method, c.req.uri);
+
+  if (result?.data) {
+    c.params = result.params;
+    return await result.data(c);
+  }
+
+  c.res.body('not found: ' + c.req.uri, 404);
+}
+
+console.log('started on http://localhost:8000');
+Ant.serve(8000, handleRequest);
+```
+
+## Async Handlers
+
+You can use async/await in request handlers:
+
+```javascript
+addRoute(router, 'GET', '/status', async c => {
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  const result = await Promise.resolve('Hello');
+  return c.res.body(`server is responding with ${result}`);
+});
+
+addRoute(router, 'GET', '/zen', async c => {
+  const response = await fetch('https://api.github.com/zen');
+  return c.res.body(await response.text());
+});
+```
+
+## File System Integration
+
+```javascript
+import { readFile } from 'ant:fs';
+import { join } from 'ant:path';
+
+addRoute(router, 'GET', '/file', async c => {
+  const file = await readFile(join(import.meta.dirname, 'data.txt'));
+  return c.res.body(file || 'File not found');
+});
+```
+
+## State Management
+
+Store and retrieve values across requests:
+
+```javascript
+addRoute(router, 'GET', '/set/:id/**:val', c => {
+  c.set(c.params.id, c.params.val);
+  c.res.body(`${c.params.id} = ${c.params.val}`);
+});
+
+addRoute(router, 'GET', '/get/:id', c => {
+  const value = c.get(c.params.id);
+  c.res.body(decodeURIComponent(value));
+});
+```
+
+## Gzip Compression
+
+The server automatically compresses responses when:
+- Client sends `Accept-Encoding: gzip` header
+- Response body is >= 1024 bytes
+- Content-Type is compressible (text/html, application/json, etc.)
+
+No configuration needed - it works automatically!
+
+## Server Control
+
+Stop the server programmatically:
+
+```javascript
+const handleRequest = (c, server) => {
+  if (c.req.uri === '/shutdown') {
+    server.stop();
+    c.res.body('Server shutting down');
+  } else {
+    c.res.body('Server running');
+  }
+};
+
+Ant.serve(8000, handleRequest);
+```
+
+## Performance Features
+
+- Built on libuv for high performance
+- Automatic gzip compression for bandwidth savings
+- Efficient HTTP parsing
+- Concurrent request handling
+- Minimal memory allocations
+
+## Best Practices
+
+1. Always handle errors in async handlers
+2. Set appropriate status codes (404, 500, etc.)
+3. Use JSON responses for APIs
+4. Set custom headers before calling response methods
+5. Use route parameters for dynamic URLs
+6. Return promises from async handlers

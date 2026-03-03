@@ -1,0 +1,118 @@
+---
+title: 'ant:crypto'
+description: 'Cryptographic functions for random number generation and UUIDs'
+---
+
+The `ant:crypto` module provides cryptographic primitives using libsodium.
+
+## Import
+
+```javascript
+import { randomBytes, randomUUID } from 'ant:crypto';
+```
+
+## Functions
+
+### random()
+
+Generates a random unsigned 32-bit integer.
+
+```javascript
+const value = crypto.random();
+```
+
+<ResponseField name="return" type="number">
+  A random unsigned 32-bit integer
+</ResponseField>
+
+### randomBytes()
+
+Generates cryptographically strong random bytes.
+
+```javascript
+const bytes = crypto.randomBytes(length);
+```
+
+<ParamField path="length" type="number" required>
+  Number of bytes to generate (1-65536)
+</ParamField>
+
+<ResponseField name="return" type="Array">
+  Array of random bytes
+</ResponseField>
+
+### randomUUID()
+
+Generates a random RFC 4122 version 4 UUID.
+
+```javascript
+const uuid = crypto.randomUUID();
+```
+
+<ResponseField name="return" type="string">
+  UUID string in the format "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx"
+</ResponseField>
+
+### randomUUIDv7()
+
+Generates a UUIDv7 with timestamp-based ordering.
+
+```javascript
+const uuid = crypto.randomUUIDv7();
+```
+
+<ResponseField name="return" type="string">
+  UUIDv7 string with embedded timestamp for natural sorting
+</ResponseField>
+
+### getRandomValues()
+
+Fills a TypedArray with cryptographically strong random values.
+
+```javascript
+const array = new Uint8Array(16);
+crypto.getRandomValues(array);
+```
+
+<ParamField path="typedArray" type="TypedArray" required>
+  The TypedArray to fill with random values (max 65536 bytes)
+</ParamField>
+
+<ResponseField name="return" type="TypedArray">
+  The same TypedArray that was passed in, now filled with random values
+</ResponseField>
+
+## Example
+
+```javascript
+import crypto from 'ant:crypto';
+
+// Generate random bytes
+const bytes = crypto.randomBytes(32);
+console.log(bytes);
+
+// Generate UUIDs
+const uuid4 = crypto.randomUUID();
+const uuid7 = crypto.randomUUIDv7();
+
+console.log('UUID v4:', uuid4);
+console.log('UUID v7:', uuid7);
+
+// Fill typed array with random values
+const buffer = new Uint8Array(16);
+crypto.getRandomValues(buffer);
+console.log('Random buffer:', buffer);
+
+// Generate random number
+const randomNum = crypto.random();
+console.log('Random uint32:', randomNum);
+```
+
+## Global crypto Object
+
+The crypto object is also available globally:
+
+```javascript
+// Available without import
+const uuid = crypto.randomUUID();
+```

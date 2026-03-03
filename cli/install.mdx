@@ -1,0 +1,146 @@
+---
+title: ant install
+description: Install dependencies from lockfile or add new packages
+---
+
+Install dependencies defined in `package.json` from the lockfile, or add new packages when specified.
+
+## Usage
+
+```bash
+ant install [packages...] [options]
+ant i [packages...] [options]
+```
+
+## Parameters
+
+<ParamField path="packages" type="string[]">
+  Package specifications to install. When provided, behaves like `ant add`.
+  
+  Formats:
+  - `package-name` - Latest version
+  - `package-name@version` - Specific version
+  - `package-name@tag` - Dist tag (e.g., `@next`, `@beta`)
+</ParamField>
+
+## Options
+
+<ParamField query="-g, --global" type="boolean">
+  Install packages globally to `~/.ant/pkg/global`.
+</ParamField>
+
+<ParamField query="-D, --save-dev" type="boolean">
+  Add packages as devDependencies.
+</ParamField>
+
+<ParamField query="--verbose" type="boolean">
+  Enable verbose output with detailed progress information.
+</ParamField>
+
+<ParamField query="-h, --help" type="boolean">
+  Display help information.
+</ParamField>
+
+## Examples
+
+### Install from lockfile
+
+```bash
+ant install
+```
+
+**Output:**
+```
+ant install v1.0.0 (abc123)
+
+5 packages installed [245ms]
+```
+
+### Install and add packages
+
+```bash
+ant install express lodash
+```
+
+**Output:**
+```
+ant install v1.0.0 (abc123)
+
++ express@4.18.2
++ lodash@4.17.21
+
+52 packages installed [892ms]
+```
+
+### Install as dev dependency
+
+```bash
+ant install -D typescript @types/node
+```
+
+### Global installation
+
+```bash
+ant install -g pm2
+```
+
+**Output:**
+```
+ant add -g v1.0.0 (abc123)
+
+installed globally pm2
+  (binaries linked to ~/.ant/bin)
+
+[156ms] done
+```
+
+### No changes needed
+
+```bash
+ant install
+```
+
+**Output:**
+```
+ant install v1.0.0 (abc123)
+
+Checked 52 installs across 52 packages (no changes) [89ms]
+```
+
+## Behavior
+
+### Without packages argument
+- Installs from existing lockfile if present
+- Resolves and creates lockfile if none exists
+- Requires `package.json` in current directory
+
+### With packages argument
+- Adds packages to `package.json`
+- Updates lockfile
+- Installs all dependencies
+
+## Lockfile
+
+Ant uses `ant.lockb` (binary format) for faster parsing and smaller size.
+
+## Cache
+
+Installed packages are cached in `~/.ant/pkg/cache` for faster subsequent installs.
+
+## Lifecycle Scripts
+
+If packages have lifecycle scripts (postinstall, etc.), Ant will prompt:
+
+```
+2 packages need to run lifecycle scripts:
+  • puppeteer (node install.js)
+  • esbuild (node install.js)
+
+Run: ant trust <pkg> or ant trust --all
+```
+
+## Related
+
+- [ant add](/cli/add) - Add packages to dependencies
+- [ant update](/cli/update) - Update dependencies
+- [ant remove](/cli/remove) - Remove packages

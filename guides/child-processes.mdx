@@ -1,0 +1,366 @@
+---
+title: Child Processes
+description: Spawn and manage child processes with ant:child_process
+---
+
+## Overview
+
+The `ant:child_process` module allows you to spawn child processes, execute shell commands, and communicate via stdin/stdout/stderr. All operations are powered by libuv for efficient process management.
+
+## Importing
+
+```javascript
+import { spawn, exec, execSync, spawnSync, fork } from 'ant:child_process';
+```
+
+## Spawning Processes
+
+### Basic Spawn
+
+```javascript
+const child = spawn('ls', ['-la', '/tmp']);
+
+child.on('stdout', (data) => {
+  console.log('stdout:', data);
+});
+
+child.on('stderr', (data) => {
+  console.error('stderr:', data);
+});
+
+child.on('exit', (code, signal) => {
+  console.log(`Process exited with code ${code}`);
+});
+
+child.on('close', (code, signal) => {
+  console.log('Process closed');
+});
+```
+
+### With Options
+
+```javascript
+const child = spawn('node', ['script.js'], {
+  cwd: '/home/user/project',  // Working directory
+  shell: true,                 // Run in shell
+  detached: false              // Keep attached to parent
+});
+```
+
+## Executing Shell Commands
+
+### Async Exec
+
+```javascript
+const result = await exec('ls -la /tmp');
+console.log('stdout:', result.stdout);
+console.log('stderr:', result.stderr);
+console.log('exit code:', result.exitCode);
+```
+
+### Exec with Options
+
+```javascript
+const result = await exec('pwd', {
+  cwd: '/tmp'
+});
+console.log('Current directory:', result.stdout.trim());
+```
+
+### Sync Exec
+
+```javascript
+const output = execSync('date');
+console.log('Date:', output);
+
+const version = execSync('node --version');
+console.log('Node version:', version);
+```
+
+## Process Events
+
+### Standard Output
+
+```javascript
+const child = spawn('npm', ['install']);
+
+// Text output
+child.on('stdout', (text) => {
+  console.log('Output:', text);
+});
+
+// Binary data
+child.stdout.on('data', (chunk) => {
+  // chunk is Uint8Array
+  console.log('Received', chunk.length, 'bytes');
+});
+```
+
+### Standard Error
+
+```javascript
+child.on('stderr', (text) => {
+  console.error('Error output:', text);
+});
+
+child.stderr.on('data', (chunk) => {
+  console.error('Error bytes:', chunk.length);
+});
+```
+
+### Exit Event
+
+```javascript
+child.on('exit', (code, signal) => {
+  if (code === 0) {
+    console.log('Success');
+  } else {
+    console.error(`Failed with code ${code}`);
+  }
+  
+  if (signal) {
+    console.log(`Killed by signal ${signal}`);
+  }
+});
+```
+
+### Close Event
+
+```javascript
+child.on('close', (code, signal) => {
+  console.log('All stdio streams closed');
+  console.log('Final stdout:', child.stdoutText);
+  console.log('Final stderr:', child.stderrText);
+});
+```
+
+## Writing to stdin
+
+```javascript
+const child = spawn('cat');
+
+// Write to stdin
+child.write('Hello\n');
+child.write('World\n');
+
+// Close stdin
+child.end();
+
+// Or use stdin directly
+child.stdin.write('More data\n');
+child.stdin.end();
+```
+
+## Stream Events
+
+```javascript
+const child = spawn('long-running-process');
+
+// stdout stream events
+child.stdout.on('data', (chunk) => {
+  console.log('Data:', chunk);
+});
+
+child.stdout.on('end', () => {
+  console.log('stdout ended');
+});
+
+child.stdout.on('error', (err) => {
+  console.error('stdout error:', err);
+});
+
+// stderr stream events
+child.stderr.on('data', (chunk) => {
+  console.error('Error data:', chunk);
+});
+
+child.stderr.on('end', () => {
+  console.log('stderr ended');
+});
+```
+
+## Killing Processes
+
+```javascript
+const child = spawn('sleep', ['100']);
+
+// Send SIGTERM (default)
+child.kill();
+
+// Send specific signal
+child.kill('SIGKILL');
+child.kill('SIGINT');
+child.kill(9); // By number
+
+// Check if killed
+if (child.killed) {
+  console.log('Process was killed');
+}
+```
+
+## Process Information
+
+```javascript
+const child = spawn('node', ['app.js']);
+
+console.log('PID:', child.pid);
+console.log('Exit code:', child.exitCode);
+console.log('Signal code:', child.signalCode);
+console.log('Connected:', child.connected);
+```
+
+## Synchronous Spawn
+
+```javascript
+const result = spawnSync('ls', ['-la']);
+
+console.log('stdout:', result.stdout);
+console.log('stderr:', result.stderr);
+console.log('status:', result.status);
+console.log('signal:', result.signal);
+console.log('pid:', result.pid);
+```
+
+### With Input
+
+```javascript
+const result = spawnSync('cat', [], {
+  input: 'Hello from stdin\n'
+});
+
+console.log('Output:', result.stdout);
+```
+
+## Forking Node Processes
+
+```javascript
+// Fork a Node.js module
+const child = fork('worker.js');
+
+// Fork with arguments
+const child2 = fork('worker.js', {
+  execArgv: ['--inspect', '--trace-warnings']
+});
+
+child.on('exit', (code) => {
+  console.log('Worker exited:', code);
+});
+```
+
+## Reference Management
+
+### Keep Process Alive
+
+```javascript
+const child = spawn('background-task');
+
+// Keep process alive
+child.ref();
+
+// Allow process to exit
+child.unref();
+
+// Same for individual streams
+child.stdout.ref();
+child.stdout.unref();
+```
+
+## Stream Control
+
+```javascript
+const child = spawn('data-producer');
+
+// Destroy stream
+child.stdout.destroy();
+
+// Reference counting
+child.stdout.ref();   // Keep alive
+child.stdout.unref(); // Allow exit
+```
+
+## Piping Example
+
+```javascript
+import { spawn } from 'ant:child_process';
+import { writeFileSync } from 'ant:fs';
+
+const ls = spawn('ls', ['-la']);
+let output = '';
+
+ls.stdout.on('data', (chunk) => {
+  output += new TextDecoder().decode(chunk);
+});
+
+ls.on('close', () => {
+  writeFileSync('ls-output.txt', output);
+  console.log('Output saved');
+});
+```
+
+## Error Handling
+
+```javascript
+try {
+  const result = await exec('invalid-command');
+} catch (err) {
+  console.error('Command failed:', err);
+}
+
+// Spawn error handling
+const child = spawn('nonexistent');
+
+child.on('error', (err) => {
+  console.error('Failed to start process:', err);
+});
+
+child.on('exit', (code) => {
+  if (code !== 0) {
+    console.error('Process failed with code', code);
+  }
+});
+```
+
+## Complete Example
+
+```javascript
+import { spawn } from 'ant:child_process';
+
+const child = spawn('git', ['log', '--oneline', '-10']);
+
+let stdout = '';
+let stderr = '';
+
+child.on('stdout', (data) => {
+  stdout += data;
+});
+
+child.on('stderr', (data) => {
+  stderr += data;
+});
+
+child.on('exit', (code, signal) => {
+  if (code === 0) {
+    console.log('Git log:');
+    console.log(stdout);
+  } else {
+    console.error('Failed:', stderr);
+  }
+});
+
+child.on('close', () => {
+  console.log('Process finished');
+});
+```
+
+## Best Practices
+
+1. Always handle 'error' events on child processes
+2. Use 'close' event for cleanup, not 'exit'
+3. Call `unref()` for background processes
+4. Use `execSync` only for short commands
+5. Handle both stdout and stderr
+6. Set timeouts for long-running processes
+7. Clean up event listeners when done
+8. Use `spawnSync` for testing/debugging
+9. Check exit codes before using output
+10. Close stdin when done writing

@@ -1,0 +1,208 @@
+---
+title: TextEncoder and TextDecoder
+description: Encode and decode text to and from UTF-8 byte arrays
+---
+
+Ant provides the standard `TextEncoder` and `TextDecoder` APIs for converting between strings and UTF-8 encoded bytes.
+
+## TextEncoder
+
+The `TextEncoder` class encodes strings into UTF-8 byte arrays.
+
+### Constructor
+
+```javascript
+const encoder = new TextEncoder();
+```
+
+TextEncoder always uses UTF-8 encoding. No parameters are needed.
+
+### Properties
+
+#### encoding
+
+Returns the encoding name, which is always "utf-8".
+
+```javascript
+const encoder = new TextEncoder();
+console.log(encoder.encoding);  // "utf-8"
+```
+
+### Methods
+
+#### encode(input)
+
+Encodes a string into a `Uint8Array` of UTF-8 bytes.
+
+<ParamField path="input" type="string">
+  The string to encode.
+</ParamField>
+
+**Returns:** `Uint8Array` containing the UTF-8 encoded bytes.
+
+```javascript
+const encoder = new TextEncoder();
+const encoded = encoder.encode('Hello, World!');
+console.log(encoded);  // Uint8Array [ 72, 101, 108, 108, 111, 44, 32, 87, 111, 114, 108, 100, 33 ]
+```
+
+#### encodeInto(source, destination)
+
+Encodes a string into an existing `Uint8Array`, avoiding allocation.
+
+<ParamField path="source" type="string" required>
+  The string to encode.
+</ParamField>
+
+<ParamField path="destination" type="Uint8Array" required>
+  The destination buffer to write the encoded bytes into.
+</ParamField>
+
+**Returns:** An object with:
+- `read`: Number of UTF-16 code units read from the source
+- `written`: Number of bytes written to the destination
+
+```javascript
+const encoder = new TextEncoder();
+const buffer = new Uint8Array(100);
+const result = encoder.encodeInto('Hello', buffer);
+
+console.log(result.read);     // 5
+console.log(result.written);  // 5
+```
+
+### Example: Encoding Emoji
+
+```javascript
+const encoder = new TextEncoder();
+const encoded = encoder.encode('🦀');
+console.log(encoded);  // Uint8Array [ 240, 159, 166, 128 ]
+console.log(encoded.length);  // 4 bytes
+```
+
+## TextDecoder
+
+The `TextDecoder` class decodes UTF-8 byte arrays into strings.
+
+### Constructor
+
+```javascript
+const decoder = new TextDecoder(encoding?, options?);
+```
+
+<ParamField path="encoding" type="string" default="utf-8">
+  The encoding to use. Currently only "utf-8" and "utf8" are supported.
+</ParamField>
+
+<ParamField path="options" type="object">
+  Options object (currently not used, provided for compatibility).
+</ParamField>
+
+### Properties
+
+#### encoding
+
+Returns the encoding name.
+
+```javascript
+const decoder = new TextDecoder();
+console.log(decoder.encoding);  // "utf-8"
+```
+
+#### fatal
+
+Indicates whether the decoder is in fatal error mode. Currently always `false`.
+
+#### ignoreBOM
+
+Indicates whether to ignore the byte order mark. Currently always `false`.
+
+### Methods
+
+#### decode(input)
+
+Decodes a buffer into a string.
+
+<ParamField path="input" type="Uint8Array | ArrayBuffer">
+  The buffer containing UTF-8 encoded bytes to decode.
+</ParamField>
+
+**Returns:** The decoded string.
+
+```javascript
+const decoder = new TextDecoder();
+const bytes = new Uint8Array([72, 101, 108, 108, 111]);
+const decoded = decoder.decode(bytes);
+console.log(decoded);  // "Hello"
+```
+
+### Example: Round-trip Encoding
+
+```javascript
+const encoder = new TextEncoder();
+const decoder = new TextDecoder();
+
+const original = 'Hello, 世界! 🦀';
+const encoded = encoder.encode(original);
+const decoded = decoder.decode(encoded);
+
+console.log(original === decoded);  // true
+```
+
+### Example: Working with ArrayBuffer
+
+```javascript
+const decoder = new TextDecoder();
+
+// Create an ArrayBuffer
+const buffer = new ArrayBuffer(5);
+const view = new Uint8Array(buffer);
+view[0] = 72;  // 'H'
+view[1] = 101; // 'e'
+view[2] = 108; // 'l'
+view[3] = 108; // 'l'
+view[4] = 111; // 'o'
+
+const text = decoder.decode(buffer);
+console.log(text);  // "Hello"
+```
+
+## Use Cases
+
+### File I/O
+
+```javascript
+import * as fs from 'ant:fs';
+
+const encoder = new TextEncoder();
+const decoder = new TextDecoder();
+
+// Write text to file
+const text = 'Hello, World!';
+const bytes = encoder.encode(text);
+fs.writeFileSync('output.txt', bytes);
+
+// Read text from file
+const readBytes = fs.readFileSync('output.txt');
+const readText = decoder.decode(readBytes);
+console.log(readText);  // "Hello, World!"
+```
+
+### Network Communication
+
+```javascript
+const encoder = new TextEncoder();
+const decoder = new TextDecoder();
+
+// Encode message for network transmission
+const message = { type: 'greeting', text: 'Hello!' };
+const json = JSON.stringify(message);
+const bytes = encoder.encode(json);
+
+// Send bytes over network...
+
+// Decode received message
+const receivedText = decoder.decode(bytes);
+const receivedMessage = JSON.parse(receivedText);
+console.log(receivedMessage.text);  // "Hello!"
+```

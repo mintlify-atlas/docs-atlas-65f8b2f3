@@ -1,0 +1,434 @@
+---
+title: Value Creation
+description: Create and inspect JavaScript values from C
+---
+
+The Ant C API provides functions for creating and manipulating JavaScript values.
+
+## Value Creation
+
+### js_mkundef
+
+Creates an `undefined` value.
+
+```c
+jsval_t js_mkundef(void);
+```
+
+**Returns:** An undefined value.
+
+```c
+jsval_t undef = js_mkundef();
+```
+
+### js_mknull
+
+Creates a `null` value.
+
+```c
+jsval_t js_mknull(void);
+```
+
+**Returns:** A null value.
+
+```c
+jsval_t null_val = js_mknull();
+```
+
+### js_bool
+
+Creates a boolean value.
+
+```c
+jsval_t js_bool(int x);
+```
+
+<ParamField path="x" type="int" required>
+  Non-zero for true, zero for false.
+</ParamField>
+
+**Returns:** A boolean value.
+
+```c
+jsval_t t = js_bool(1);  // true
+jsval_t f = js_bool(0);  // false
+
+// Predefined constants
+jsval_t t2 = js_true;
+jsval_t f2 = js_false;
+```
+
+### js_mknum
+
+Creates a number value.
+
+```c
+jsval_t js_mknum(double value);
+```
+
+<ParamField path="value" type="double" required>
+  The numeric value.
+</ParamField>
+
+**Returns:** A number value.
+
+```c
+jsval_t num = js_mknum(42.5);
+jsval_t neg = js_mknum(-10);
+jsval_t inf = js_mknum(JS_INF);
+jsval_t nan = js_mknum(JS_NAN);
+```
+
+### js_mkstr
+
+Creates a string value.
+
+```c
+jsval_t js_mkstr(ant_t *js, const void *data, size_t len);
+```
+
+<ParamField path="js" type="ant_t*" required>
+  The runtime instance.
+</ParamField>
+
+<ParamField path="data" type="const void*" required>
+  Pointer to the string data.
+</ParamField>
+
+<ParamField path="len" type="size_t" required>
+  Length of the string in bytes.
+</ParamField>
+
+**Returns:** A string value.
+
+```c
+jsval_t str = js_mkstr(js, "Hello", 5);
+
+// Using the ANT_STRING helper macro
+jsval_t str2 = ANT_STRING("World");
+```
+
+### js_mkobj
+
+Creates a new empty object.
+
+```c
+jsval_t js_mkobj(ant_t *js);
+```
+
+<ParamField path="js" type="ant_t*" required>
+  The runtime instance.
+</ParamField>
+
+**Returns:** An object value.
+
+```c
+jsval_t obj = js_mkobj(js);
+js_set(js, obj, "name", js_mkstr(js, "Alice", 5));
+js_set(js, obj, "age", js_mknum(30));
+```
+
+### js_mkarr
+
+Creates a new empty array.
+
+```c
+jsval_t js_mkarr(ant_t *js);
+```
+
+<ParamField path="js" type="ant_t*" required>
+  The runtime instance.
+</ParamField>
+
+**Returns:** An array value.
+
+```c
+jsval_t arr = js_mkarr(js);
+js_arr_push(js, arr, js_mknum(1));
+js_arr_push(js, arr, js_mknum(2));
+js_arr_push(js, arr, js_mknum(3));
+```
+
+### js_mkbigint
+
+Creates a BigInt value from a string.
+
+```c
+jsval_t js_mkbigint(ant_t *js, const char *digits, size_t len, bool negative);
+```
+
+<ParamField path="js" type="ant_t*" required>
+  The runtime instance.
+</ParamField>
+
+<ParamField path="digits" type="const char*" required>
+  String of decimal digits.
+</ParamField>
+
+<ParamField path="len" type="size_t" required>
+  Length of the digit string.
+</ParamField>
+
+<ParamField path="negative" type="bool" required>
+  Whether the BigInt is negative.
+</ParamField>
+
+**Returns:** A BigInt value.
+
+```c
+jsval_t big = js_mkbigint(js, "123456789012345", 15, false);
+jsval_t neg_big = js_mkbigint(js, "999", 3, true);
+```
+
+### js_mksym
+
+Creates a new symbol with a description.
+
+```c
+jsval_t js_mksym(ant_t *js, const char *desc);
+```
+
+<ParamField path="js" type="ant_t*" required>
+  The runtime instance.
+</ParamField>
+
+<ParamField path="desc" type="const char*" required>
+  The symbol description.
+</ParamField>
+
+**Returns:** A symbol value.
+
+```c
+jsval_t sym = js_mksym(js, "mySymbol");
+```
+
+### js_mksym_for
+
+Creates or retrieves a global symbol by key.
+
+```c
+jsval_t js_mksym_for(ant_t *js, const char *key);
+```
+
+<ParamField path="js" type="ant_t*" required>
+  The runtime instance.
+</ParamField>
+
+<ParamField path="key" type="const char*" required>
+  The global symbol key.
+</ParamField>
+
+**Returns:** A symbol value.
+
+```c
+jsval_t sym1 = js_mksym_for(js, "app.id");
+jsval_t sym2 = js_mksym_for(js, "app.id");
+// sym1 and sym2 refer to the same symbol
+```
+
+## Value Inspection
+
+### vtype
+
+Returns the type tag of a value.
+
+```c
+uint8_t vtype(jsval_t val);
+```
+
+<ParamField path="val" type="jsval_t" required>
+  The value to inspect.
+</ParamField>
+
+**Returns:** Type tag (T_NUM, T_STR, T_OBJ, T_ARR, T_BOOL, T_UNDEF, T_NULL, T_FUNC, T_ERR, etc.)
+
+```c
+jsval_t val = js_mknum(42);
+if (vtype(val) == T_NUM) {
+  printf("It's a number\n");
+}
+```
+
+### js_getnum
+
+Extracts a number from a value.
+
+```c
+double js_getnum(jsval_t val);
+```
+
+<ParamField path="val" type="jsval_t" required>
+  The value to extract from (must be a number).
+</ParamField>
+
+**Returns:** The numeric value.
+
+```c
+jsval_t num = js_mknum(3.14);
+double value = js_getnum(num);
+printf("%g\n", value);  // 3.14
+```
+
+### js_getstr
+
+Extracts a string from a value.
+
+```c
+char *js_getstr(ant_t *js, jsval_t val, size_t *len);
+```
+
+<ParamField path="js" type="ant_t*" required>
+  The runtime instance.
+</ParamField>
+
+<ParamField path="val" type="jsval_t" required>
+  The value to extract from (must be a string).
+</ParamField>
+
+<ParamField path="len" type="size_t*">
+  Output: Length of the string (optional, can be NULL).
+</ParamField>
+
+**Returns:** Pointer to the string data (null-terminated).
+
+```c
+jsval_t str = js_mkstr(js, "Hello", 5);
+size_t len;
+char *data = js_getstr(js, str, &len);
+printf("%s (length: %zu)\n", data, len);
+```
+
+### js_str
+
+Converts any value to a string representation.
+
+```c
+const char *js_str(ant_t *js, jsval_t val);
+```
+
+<ParamField path="js" type="ant_t*" required>
+  The runtime instance.
+</ParamField>
+
+<ParamField path="val" type="jsval_t" required>
+  The value to convert.
+</ParamField>
+
+**Returns:** String representation.
+
+```c
+jsval_t num = js_mknum(42);
+printf("%s\n", js_str(js, num));  // "42"
+
+jsval_t obj = js_mkobj(js);
+printf("%s\n", js_str(js, obj));  // "[object Object]"
+```
+
+### js_truthy
+
+Tests if a value is truthy.
+
+```c
+bool js_truthy(ant_t *js, jsval_t val);
+```
+
+<ParamField path="js" type="ant_t*" required>
+  The runtime instance.
+</ParamField>
+
+<ParamField path="val" type="jsval_t" required>
+  The value to test.
+</ParamField>
+
+**Returns:** `true` if the value is truthy, `false` otherwise.
+
+```c
+if (js_truthy(js, result)) {
+  printf("Value is truthy\n");
+}
+```
+
+## Type Conversion
+
+### js_to_uint32
+
+Converts a double to a 32-bit unsigned integer.
+
+```c
+uint32_t js_to_uint32(double d);
+```
+
+<ParamField path="d" type="double" required>
+  The value to convert.
+</ParamField>
+
+**Returns:** The converted unsigned integer.
+
+```c
+uint32_t val = js_to_uint32(42.7);  // 42
+```
+
+### js_to_int32
+
+Converts a double to a 32-bit signed integer.
+
+```c
+int32_t js_to_int32(double d);
+```
+
+<ParamField path="d" type="double" required>
+  The value to convert.
+</ParamField>
+
+**Returns:** The converted signed integer.
+
+```c
+int32_t val = js_to_int32(-42.7);  // -42
+```
+
+### js_tostring_val
+
+Converts a value to a string value.
+
+```c
+jsval_t js_tostring_val(ant_t *js, jsval_t value);
+```
+
+<ParamField path="js" type="ant_t*" required>
+  The runtime instance.
+</ParamField>
+
+<ParamField path="value" type="jsval_t" required>
+  The value to convert.
+</ParamField>
+
+**Returns:** A string value.
+
+```c
+jsval_t num = js_mknum(42);
+jsval_t str = js_tostring_val(js, num);
+// str is now a string "42"
+```
+
+## Example: Creating Complex Values
+
+```c
+// Create a person object
+jsval_t person = js_mkobj(js);
+js_set(js, person, "name", js_mkstr(js, "Alice", 5));
+js_set(js, person, "age", js_mknum(30));
+js_set(js, person, "active", js_true);
+
+// Create an array of hobbies
+jsval_t hobbies = js_mkarr(js);
+js_arr_push(js, hobbies, js_mkstr(js, "reading", 7));
+js_arr_push(js, hobbies, js_mkstr(js, "coding", 6));
+js_set(js, person, "hobbies", hobbies);
+
+// Add to global
+js_set(js, js_glob(js), "person", person);
+
+// Access from JavaScript
+const char *code = "console.log(person.name, person.hobbies)";
+js_eval_bytecode_eval(js, code, strlen(code));
+```

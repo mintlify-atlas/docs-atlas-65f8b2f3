@@ -1,0 +1,146 @@
+---
+title: ant update
+description: Update dependencies and refresh lockfile
+---
+
+Re-resolve all dependencies from the registry and update the lockfile, or upgrade specific packages.
+
+## Usage
+
+```bash
+ant update [packages...] [options]
+ant up [packages...] [options]
+```
+
+## Parameters
+
+<ParamField path="packages" type="string[]">
+  Specific packages to update. When omitted, updates all dependencies.
+  
+  Formats:
+  - `package-name` - Update to latest matching semver range
+  - `package-name@version` - Update to specific version
+</ParamField>
+
+## Options
+
+<ParamField query="--verbose" type="boolean">
+  Enable verbose output.
+</ParamField>
+
+<ParamField query="-h, --help" type="boolean">
+  Display help information.
+</ParamField>
+
+## Examples
+
+### Update all dependencies
+
+```bash
+ant update
+```
+
+**Output:**
+```
+ant update v1.0.0 (abc123)
+
++ express@4.18.3
++ lodash@4.17.21
+
+52 packages installed (15 cached) [456ms]
+```
+
+### Update specific packages
+
+```bash
+ant update express lodash
+```
+
+### Update to specific version
+
+```bash
+ant update react@18.2.0
+```
+
+### No updates available
+
+```bash
+ant update
+```
+
+**Output:**
+```
+ant update v1.0.0 (abc123)
+
+Checked 52 installs across 52 packages (no changes) [123ms]
+```
+
+### Verbose output
+
+```bash
+ant update --verbose
+```
+
+**Output:**
+```
+ant update v1.0.0 (abc123)
+[update] resolving express
+[update] fetching express@4.18.3
+[update] extracting express@4.18.3
+[update] linking express
+
++ express@4.18.3
+
+52 packages installed [892ms]
+```
+
+## Update Behavior
+
+### Without package arguments
+
+- Re-resolves all dependencies from the npm registry
+- Updates to latest versions within semver ranges in `package.json`
+- Refreshes `ant.lockb` lockfile
+- Installs updated packages
+
+### With package arguments
+
+- Updates specified packages to latest or specified version
+- Modifies version in `package.json`
+- Updates lockfile
+- Installs all dependencies
+
+## Semver Ranges
+
+Respects semver ranges in `package.json`:
+
+```json
+{
+  "dependencies": {
+    "express": "^4.17.0",  // Updates to 4.x.x (e.g., 4.18.3)
+    "lodash": "~4.17.0",   // Updates to 4.17.x only
+    "react": "18.2.0"      // Exact version, no update
+  }
+}
+```
+
+## Cache Usage
+
+Utilizes cached packages when available for faster updates:
+
+```
+52 packages installed (15 cached) [456ms]
+```
+
+## Lockfile Refresh
+
+The `ant update` command always regenerates the lockfile, which is useful when:
+
+- Registry metadata has changed
+- Fixing corrupted lockfiles
+- Ensuring latest resolutions within constraints
+
+## Related
+
+- [ant install](/cli/install) - Install from lockfile
+- [ant add](/cli/add) - Add new packages

@@ -1,0 +1,352 @@
+---
+title: 'ant:buffer'
+description: 'Binary data handling with ArrayBuffer, TypedArray, and Buffer support'
+---
+
+The `ant:buffer` module provides APIs for working with binary data through ArrayBuffer, TypedArray, and Buffer objects.
+
+## Import
+
+```javascript
+import { Buffer } from 'ant:buffer';
+```
+
+## ArrayBuffer
+
+Represents a fixed-length raw binary data buffer.
+
+### Constructor
+
+```javascript
+const buffer = new ArrayBuffer(length);
+```
+
+<ParamField path="length" type="number">
+  The size of the buffer in bytes
+</ParamField>
+
+### Properties
+
+<ResponseField name="byteLength" type="number">
+  The size of the buffer in bytes
+</ResponseField>
+
+### Methods
+
+#### slice()
+
+Returns a new ArrayBuffer with a copy of the specified portion.
+
+```javascript
+const sliced = buffer.slice(begin, end);
+```
+
+<ParamField path="begin" type="number" default="0">
+  The beginning index (inclusive)
+</ParamField>
+
+<ParamField path="end" type="number" default="byteLength">
+  The ending index (exclusive)
+</ParamField>
+
+#### transfer()
+
+Transfers ownership of the ArrayBuffer to a new buffer, detaching the original.
+
+```javascript
+const transferred = buffer.transfer(newLength);
+```
+
+<ParamField path="newLength" type="number" default="byteLength">
+  The size of the new buffer
+</ParamField>
+
+## TypedArray Types
+
+All typed array types are supported:
+
+- `Int8Array` - 8-bit signed integers
+- `Uint8Array` - 8-bit unsigned integers
+- `Uint8ClampedArray` - 8-bit unsigned integers (clamped)
+- `Int16Array` - 16-bit signed integers
+- `Uint16Array` - 16-bit unsigned integers
+- `Int32Array` - 32-bit signed integers
+- `Uint32Array` - 32-bit unsigned integers
+- `Float32Array` - 32-bit floating point
+- `Float64Array` - 64-bit floating point
+- `BigInt64Array` - 64-bit signed big integers
+- `BigUint64Array` - 64-bit unsigned big integers
+
+### Constructor
+
+```javascript
+const arr = new Uint8Array(length);
+const arr = new Uint8Array(buffer, byteOffset, length);
+const arr = new Uint8Array(iterable);
+```
+
+<ParamField path="length" type="number">
+  Number of elements
+</ParamField>
+
+<ParamField path="buffer" type="ArrayBuffer">
+  Existing ArrayBuffer to create view over
+</ParamField>
+
+<ParamField path="byteOffset" type="number" default="0">
+  Offset in bytes from start of buffer
+</ParamField>
+
+<ParamField path="iterable" type="Iterable">
+  Array-like or iterable object to copy from
+</ParamField>
+
+### Properties
+
+<ResponseField name="length" type="number">
+  Number of elements in the array
+</ResponseField>
+
+<ResponseField name="byteLength" type="number">
+  Size in bytes
+</ResponseField>
+
+<ResponseField name="byteOffset" type="number">
+  Offset in bytes from start of buffer
+</ResponseField>
+
+<ResponseField name="buffer" type="ArrayBuffer">
+  The underlying ArrayBuffer
+</ResponseField>
+
+<ResponseField name="BYTES_PER_ELEMENT" type="number">
+  Size in bytes of each element
+</ResponseField>
+
+### Methods
+
+#### at()
+
+Returns the element at the given index, supporting negative indices.
+
+```javascript
+const value = array.at(index);
+```
+
+<ParamField path="index" type="number">
+  The index (can be negative)
+</ParamField>
+
+#### slice()
+
+Returns a new typed array with a copy of the specified portion.
+
+```javascript
+const sliced = array.slice(begin, end);
+```
+
+<ParamField path="begin" type="number" default="0">
+  The beginning index
+</ParamField>
+
+<ParamField path="end" type="number" default="length">
+  The ending index
+</ParamField>
+
+#### subarray()
+
+Returns a new typed array view over the same buffer.
+
+```javascript
+const view = array.subarray(begin, end);
+```
+
+<ParamField path="begin" type="number" default="0">
+  The beginning index
+</ParamField>
+
+<ParamField path="end" type="number" default="length">
+  The ending index
+</ParamField>
+
+#### fill()
+
+Fills the array with a static value.
+
+```javascript
+array.fill(value, start, end);
+```
+
+<ParamField path="value" type="number">
+  The value to fill
+</ParamField>
+
+<ParamField path="start" type="number" default="0">
+  Starting index
+</ParamField>
+
+<ParamField path="end" type="number" default="length">
+  Ending index
+</ParamField>
+
+#### set()
+
+Copies elements from an array into the typed array.
+
+```javascript
+array.set(source, offset);
+```
+
+<ParamField path="source" type="TypedArray | Array">
+  Source array to copy from
+</ParamField>
+
+<ParamField path="offset" type="number" default="0">
+  Offset in the target array
+</ParamField>
+
+#### copyWithin()
+
+Copies a sequence of elements within the array.
+
+```javascript
+array.copyWithin(target, start, end);
+```
+
+<ParamField path="target" type="number">
+  Index to copy to
+</ParamField>
+
+<ParamField path="start" type="number" default="0">
+  Index to start copying from
+</ParamField>
+
+<ParamField path="end" type="number" default="length">
+  Index to end copying from
+</ParamField>
+
+#### toReversed()
+
+Returns a new array with elements in reversed order.
+
+```javascript
+const reversed = array.toReversed();
+```
+
+#### toSorted()
+
+Returns a new sorted array.
+
+```javascript
+const sorted = array.toSorted(compareFn);
+```
+
+<ParamField path="compareFn" type="function" optional>
+  Comparison function
+</ParamField>
+
+#### with()
+
+Returns a new array with one element changed.
+
+```javascript
+const newArray = array.with(index, value);
+```
+
+<ParamField path="index" type="number">
+  Index of element to change
+</ParamField>
+
+<ParamField path="value" type="number">
+  New value
+</ParamField>
+
+## DataView
+
+Provides a low-level interface for reading and writing data in an ArrayBuffer.
+
+### Constructor
+
+```javascript
+const view = new DataView(buffer, byteOffset, byteLength);
+```
+
+<ParamField path="buffer" type="ArrayBuffer">
+  The ArrayBuffer to create a view over
+</ParamField>
+
+<ParamField path="byteOffset" type="number" default="0">
+  Offset in bytes
+</ParamField>
+
+<ParamField path="byteLength" type="number" default="buffer.byteLength - byteOffset">
+  Length in bytes
+</ParamField>
+
+### Methods
+
+#### getUint8() / setUint8()
+
+```javascript
+const value = view.getUint8(byteOffset);
+view.setUint8(byteOffset, value);
+```
+
+#### getInt16() / setInt16()
+
+```javascript
+const value = view.getInt16(byteOffset, littleEndian);
+view.setInt16(byteOffset, value, littleEndian);
+```
+
+#### getInt32() / setInt32()
+
+```javascript
+const value = view.getInt32(byteOffset, littleEndian);
+view.setInt32(byteOffset, value, littleEndian);
+```
+
+#### getFloat32() / setFloat32()
+
+```javascript
+const value = view.getFloat32(byteOffset, littleEndian);
+view.setFloat32(byteOffset, value, littleEndian);
+```
+
+#### getFloat64() / setFloat64()
+
+```javascript
+const value = view.getFloat64(byteOffset, littleEndian);
+view.setFloat64(byteOffset, value, littleEndian);
+```
+
+<ParamField path="byteOffset" type="number">
+  Byte offset from the start of the view
+</ParamField>
+
+<ParamField path="littleEndian" type="boolean" default="false">
+  Whether to use little-endian byte order
+</ParamField>
+
+## Example
+
+```javascript
+import { Buffer } from 'ant:buffer';
+
+// Create a buffer
+const buffer = new ArrayBuffer(16);
+
+// Create typed array views
+const uint8 = new Uint8Array(buffer);
+const uint32 = new Uint32Array(buffer);
+
+// Fill with data
+uint8.fill(255);
+
+// Create a DataView for mixed-type access
+const view = new DataView(buffer);
+view.setUint32(0, 0x12345678, true);
+
+const value = view.getUint32(0, true);
+console.log(value.toString(16)); // "12345678"
+```

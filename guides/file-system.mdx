@@ -1,0 +1,334 @@
+---
+title: File System Operations
+description: Read, write, and manage files with ant:fs module
+---
+
+## Overview
+
+The `ant:fs` module provides both synchronous and asynchronous file system operations. All async operations return Promises and are powered by libuv for non-blocking I/O.
+
+## Importing
+
+```javascript
+import { 
+  readFile, readFileSync,
+  writeFile, writeFileSync,
+  mkdir, mkdirSync,
+  unlink, unlinkSync,
+  stat, statSync,
+  exists, existsSync,
+  readdir, readdirSync
+} from 'ant:fs';
+```
+
+## Reading Files
+
+### Async Read
+
+```javascript
+// Read as Buffer (Uint8Array)
+const data = await readFile('data.bin');
+
+// Read as UTF-8 string
+const text = await readFile('file.txt', 'utf8');
+
+// Read with encoding options
+const content = await readFile('file.txt', { encoding: 'utf8' });
+```
+
+### Sync Read
+
+```javascript
+const data = readFileSync('config.json', 'utf8');
+const json = JSON.parse(data);
+```
+
+### Supported Encodings
+
+- `utf8` / `utf-8` - UTF-8 text
+- `utf16le` / `ucs2` / `ucs-2` - UTF-16 Little Endian
+- `latin1` / `binary` - Latin-1 binary
+- `base64` - Base64 encoding
+- `base64url` - URL-safe Base64
+- `hex` - Hexadecimal
+- `ascii` - ASCII text
+
+```javascript
+// Read as base64
+const encoded = await readFile('image.png', 'base64');
+
+// Read as hex
+const hex = await readFile('data.bin', 'hex');
+```
+
+## Writing Files
+
+### Async Write
+
+```javascript
+// Write string
+await writeFile('output.txt', 'Hello, World!');
+
+// Write JSON
+await writeFile('data.json', JSON.stringify({ key: 'value' }));
+
+// Write with encoding
+await writeFile('file.txt', data, 'utf8');
+```
+
+### Sync Write
+
+```javascript
+writeFileSync('log.txt', 'Log entry\n');
+writeFileSync('config.json', JSON.stringify(config, null, 2));
+```
+
+## Appending to Files
+
+```javascript
+// Sync append
+appendFileSync('log.txt', 'New log entry\n');
+appendFileSync('data.csv', 'row1,row2,row3\n');
+```
+
+## File Metadata
+
+### Async Stat
+
+```javascript
+const stats = await stat('file.txt');
+console.log(stats.size);      // File size in bytes
+console.log(stats.mode);      // File permissions
+console.log(stats.uid);       // User ID
+console.log(stats.gid);       // Group ID
+
+// Check file type
+if (stats.isFile()) {
+  console.log('It\'s a file');
+}
+if (stats.isDirectory()) {
+  console.log('It\'s a directory');
+}
+if (stats.isSymbolicLink()) {
+  console.log('It\'s a symlink');
+}
+```
+
+### Sync Stat
+
+```javascript
+const stats = statSync('package.json');
+if (stats.isFile()) {
+  console.log(`File size: ${stats.size} bytes`);
+}
+```
+
+## Checking Existence
+
+### Async Exists
+
+```javascript
+if (await exists('config.json')) {
+  console.log('File exists');
+}
+```
+
+### Sync Exists
+
+```javascript
+if (existsSync('data.txt')) {
+  const data = readFileSync('data.txt', 'utf8');
+}
+```
+
+## Directory Operations
+
+### Create Directory
+
+```javascript
+// Async create
+await mkdir('new-dir');
+
+// Create with permissions
+await mkdir('secure-dir', 0o755);
+
+// Create with options (recursive)
+await mkdir('path/to/nested/dir', { recursive: true });
+
+// Sync create
+mkdirSync('output');
+mkdirSync('nested/path', { recursive: true });
+```
+
+### Remove Directory
+
+```javascript
+// Async remove
+await rmdir('old-dir');
+
+// Sync remove
+rmdirSync('temp');
+```
+
+### List Directory
+
+```javascript
+// Async list
+const files = await readdir('.');
+for (const file of files) {
+  console.log(file);
+}
+
+// Sync list
+const entries = readdirSync('/tmp');
+console.log(entries);
+```
+
+## Deleting Files
+
+```javascript
+// Async delete
+await unlink('old-file.txt');
+
+// Sync delete
+unlinkSync('temp.log');
+```
+
+## Copying Files
+
+```javascript
+copyFileSync('source.txt', 'destination.txt');
+```
+
+## Renaming/Moving Files
+
+```javascript
+renameSync('old-name.txt', 'new-name.txt');
+renameSync('file.txt', 'other-dir/file.txt'); // Move to another directory
+```
+
+## File Access Checks
+
+```javascript
+import { constants } from 'ant:fs';
+
+// Check if file is readable
+try {
+  await access('file.txt', constants.R_OK);
+  console.log('File is readable');
+} catch (err) {
+  console.log('File is not readable');
+}
+
+// Sync access check
+try {
+  accessSync('file.txt', constants.W_OK);
+  console.log('File is writable');
+} catch (err) {
+  console.log('File is not writable');
+}
+```
+
+## Low-Level File Descriptors
+
+### Open/Read/Write/Close
+
+```javascript
+import { open, read, write, close, openSync, readSync, writeSync, closeSync } from 'ant:fs';
+
+// Async file descriptor operations
+const fd = await open('file.txt', 'r');
+const buffer = new Uint8Array(1024);
+const bytesRead = await read(fd, buffer);
+await close(fd);
+
+// Sync file descriptor operations
+const fd2 = openSync('output.bin', 'w');
+const data = new Uint8Array([1, 2, 3, 4]);
+const bytesWritten = writeSync(fd2, data);
+closeSync(fd2);
+```
+
+### Read with Options
+
+```javascript
+const fd = await open('large-file.bin', 'r');
+const buffer = new Uint8Array(512);
+
+// Read 256 bytes starting at position 1024
+const bytesRead = await read(fd, buffer, {
+  offset: 0,      // Buffer offset
+  length: 256,    // Bytes to read
+  position: 1024  // File position
+});
+
+await close(fd);
+```
+
+### Write with Options
+
+```javascript
+const fd = await open('file.bin', 'w');
+const data = new Uint8Array([10, 20, 30, 40, 50]);
+
+// Write 3 bytes starting from buffer offset 1 at file position 0
+const bytesWritten = await write(fd, data, {
+  offset: 1,    // Buffer offset
+  length: 3,    // Bytes to write
+  position: 0   // File position
+});
+
+await close(fd);
+```
+
+## Error Handling
+
+```javascript
+try {
+  const data = await readFile('missing.txt');
+} catch (err) {
+  console.error('Error reading file:', err.message);
+  console.error('Error code:', err.code); // ENOENT, EACCES, etc.
+}
+
+// Sync error handling
+try {
+  writeFileSync('/readonly/file.txt', 'data');
+} catch (err) {
+  if (err.code === 'EACCES') {
+    console.error('Permission denied');
+  }
+}
+```
+
+## Common Error Codes
+
+- `ENOENT` - No such file or directory
+- `EACCES` - Permission denied
+- `EEXIST` - File already exists
+- `ENOTDIR` - Not a directory
+- `EISDIR` - Is a directory
+- `ENOTEMPTY` - Directory not empty
+
+## Working with Paths
+
+```javascript
+import { join, dirname, basename } from 'ant:path';
+import { readFile } from 'ant:fs';
+
+const configPath = join(import.meta.dirname, 'config.json');
+const config = await readFile(configPath, 'utf8');
+
+const dir = dirname('/path/to/file.txt');   // '/path/to'
+const name = basename('/path/to/file.txt'); // 'file.txt'
+```
+
+## Best Practices
+
+1. Use async operations for better performance
+2. Always handle errors with try/catch
+3. Close file descriptors when done
+4. Check file existence before operations
+5. Use appropriate encodings for text files
+6. Prefer `readdir` over shell commands
+7. Use `stat()` to check file types before operations

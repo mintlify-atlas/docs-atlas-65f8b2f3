@@ -1,0 +1,403 @@
+---
+title: 'ant:process'
+description: 'Process information and control'
+---
+
+The `ant:process` module provides information about and control over the current process.
+
+## Import
+
+```javascript
+import process from 'ant:process';
+// Also available globally as process
+```
+
+## Properties
+
+<ResponseField name="argv" type="Array<string>">
+  Command line arguments
+</ResponseField>
+
+<ResponseField name="argv0" type="string">
+  The first argument (executable path)
+</ResponseField>
+
+<ResponseField name="execPath" type="string">
+  Path to the executable
+</ResponseField>
+
+<ResponseField name="execArgv" type="Array<string>">
+  Runtime-specific command line options
+</ResponseField>
+
+<ResponseField name="pid" type="number">
+  Process ID
+</ResponseField>
+
+<ResponseField name="ppid" type="number">
+  Parent process ID
+</ResponseField>
+
+<ResponseField name="platform" type="string">
+  Operating system platform ('linux', 'darwin', 'win32', etc.)
+</ResponseField>
+
+<ResponseField name="arch" type="string">
+  CPU architecture ('x64', 'arm64', etc.)
+</ResponseField>
+
+<ResponseField name="version" type="string">
+  Ant version string
+</ResponseField>
+
+<ResponseField name="versions" type="object">
+  Object containing version strings for Ant and dependencies
+</ResponseField>
+
+## Environment Variables
+
+<ResponseField name="env" type="object">
+  Object containing environment variables
+</ResponseField>
+
+```javascript
+console.log(process.env.PATH);
+process.env.MY_VAR = 'value';
+```
+
+## Methods
+
+### exit()
+
+Exits the process with the specified code.
+
+```javascript
+process.exit(code);
+```
+
+<ParamField path="code" type="number" default="0">
+  Exit code
+</ParamField>
+
+### cwd()
+
+Returns the current working directory.
+
+```javascript
+const dir = process.cwd();
+```
+
+<ResponseField name="return" type="string">
+  Current working directory path
+</ResponseField>
+
+### chdir()
+
+Changes the current working directory.
+
+```javascript
+process.chdir(directory);
+```
+
+<ParamField path="directory" type="string" required>
+  New working directory
+</ParamField>
+
+### uptime()
+
+Returns the number of seconds the process has been running.
+
+```javascript
+const seconds = process.uptime();
+```
+
+<ResponseField name="return" type="number">
+  Uptime in seconds
+</ResponseField>
+
+### hrtime()
+
+Returns high-resolution real time.
+
+```javascript
+const [seconds, nanoseconds] = process.hrtime();
+const diff = process.hrtime(previousTime);
+```
+
+<ParamField path="time" type="Array<number>" optional>
+  Previous time to calculate difference from
+</ParamField>
+
+<ResponseField name="return" type="Array<number>">
+  [seconds, nanoseconds] tuple
+</ResponseField>
+
+### hrtime.bigint()
+
+Returns high-resolution time as a bigint.
+
+```javascript
+const time = process.hrtime.bigint();
+```
+
+<ResponseField name="return" type="bigint">
+  Time in nanoseconds
+</ResponseField>
+
+### memoryUsage()
+
+Returns memory usage information.
+
+```javascript
+const usage = process.memoryUsage();
+```
+
+<ResponseField name="return" type="object">
+  Object with rss, heapTotal, heapUsed, external, and arrayBuffers properties
+</ResponseField>
+
+### memoryUsage.rss()
+
+Returns resident set size.
+
+```javascript
+const rss = process.memoryUsage.rss();
+```
+
+<ResponseField name="return" type="number">
+  RSS in bytes
+</ResponseField>
+
+### cpuUsage()
+
+Returns CPU usage information.
+
+```javascript
+const usage = process.cpuUsage();
+const diff = process.cpuUsage(previousUsage);
+```
+
+<ParamField path="previousUsage" type="object" optional>
+  Previous CPU usage to calculate difference from
+</ParamField>
+
+<ResponseField name="return" type="object">
+  Object with user and system properties (in microseconds)
+</ResponseField>
+
+### kill()
+
+Sends a signal to a process.
+
+```javascript
+process.kill(pid, signal);
+```
+
+<ParamField path="pid" type="number" required>
+  Process ID to send signal to
+</ParamField>
+
+<ParamField path="signal" type="string | number" default="SIGTERM">
+  Signal to send
+</ParamField>
+
+### abort()
+
+Aborts the process immediately.
+
+```javascript
+process.abort();
+```
+
+### umask()
+
+Gets or sets the file mode creation mask.
+
+```javascript
+const old = process.umask(mask);
+const current = process.umask();
+```
+
+<ParamField path="mask" type="number" optional>
+  New umask value
+</ParamField>
+
+<ResponseField name="return" type="number">
+  Previous or current umask
+</ResponseField>
+
+## POSIX Functions
+
+These functions are only available on POSIX systems (Linux, macOS):
+
+### getuid()
+
+Returns the user ID.
+
+```javascript
+const uid = process.getuid();
+```
+
+### geteuid()
+
+Returns the effective user ID.
+
+```javascript
+const euid = process.geteuid();
+```
+
+### getgid()
+
+Returns the group ID.
+
+```javascript
+const gid = process.getgid();
+```
+
+### getegid()
+
+Returns the effective group ID.
+
+```javascript
+const egid = process.getegid();
+```
+
+### getgroups()
+
+Returns supplementary group IDs.
+
+```javascript
+const groups = process.getgroups();
+```
+
+<ResponseField name="return" type="Array<number>">
+  Array of group IDs
+</ResponseField>
+
+### setuid()
+
+Sets the user ID.
+
+```javascript
+process.setuid(id);
+```
+
+<ParamField path="id" type="number | string" required>
+  User ID or username
+</ParamField>
+
+### setgid()
+
+Sets the group ID.
+
+```javascript
+process.setgid(id);
+```
+
+<ParamField path="id" type="number | string" required>
+  Group ID or group name
+</ParamField>
+
+## Event Emitter
+
+The process object is an EventEmitter.
+
+### Events
+
+- `exit` - Emitted when process is about to exit
+- `beforeExit` - Emitted before process exits
+- `uncaughtException` - Emitted when an exception bubbles up
+- `unhandledRejection` - Emitted when a Promise rejection is not handled
+- Signal events (SIGINT, SIGTERM, etc.)
+
+```javascript
+process.on('exit', (code) => {
+  console.log('Exiting with code:', code);
+});
+
+process.on('SIGINT', () => {
+  console.log('Received SIGINT');
+  process.exit(0);
+});
+```
+
+### on()
+
+```javascript
+process.on(event, listener);
+```
+
+### once()
+
+```javascript
+process.once(event, listener);
+```
+
+### off()
+
+```javascript
+process.off(event, listener);
+```
+
+### removeAllListeners()
+
+```javascript
+process.removeAllListeners(event);
+```
+
+## Standard Streams
+
+<ResponseField name="stdin" type="ReadableStream">
+  Standard input stream
+</ResponseField>
+
+<ResponseField name="stdout" type="WritableStream">
+  Standard output stream
+</ResponseField>
+
+<ResponseField name="stderr" type="WritableStream">
+  Standard error stream
+</ResponseField>
+
+```javascript
+process.stdout.write('Hello\n');
+
+process.stdin.on('data', (chunk) => {
+  console.log('Received:', chunk);
+});
+```
+
+## Example
+
+```javascript
+import process from 'ant:process';
+
+// Process information
+console.log('PID:', process.pid);
+console.log('Platform:', process.platform);
+console.log('Architecture:', process.arch);
+console.log('Node version:', process.version);
+
+// Environment variables
+console.log('PATH:', process.env.PATH);
+process.env.DEBUG = 'true';
+
+// Working directory
+console.log('CWD:', process.cwd());
+
+// Memory usage
+const mem = process.memoryUsage();
+console.log('RSS:', mem.rss / 1024 / 1024, 'MB');
+
+// Measure execution time
+const start = process.hrtime.bigint();
+// ... do work ...
+const end = process.hrtime.bigint();
+console.log('Duration:', Number(end - start) / 1e6, 'ms');
+
+// Handle signals
+process.on('SIGINT', () => {
+  console.log('Ctrl+C pressed');
+  process.exit(0);
+});
+```

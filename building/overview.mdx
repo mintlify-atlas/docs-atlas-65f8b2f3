@@ -1,0 +1,97 @@
+---
+title: Building Overview
+description: Overview of building Ant from source, including supported platforms and prerequisites
+---
+
+Depending on what platform or features you need, the build process may differ. After you've built a binary, running the test suite to confirm that the binary works as intended is a good next step.
+
+If you can reproduce a test failure, search for it in the [Ant issue tracker](https://github.com/theMackabu/ant/issues) or file a new issue.
+
+## Supported Platforms
+
+Ant builds and runs on the following platforms. Official CI builds are produced for each platform listed below.
+
+| Operating System | Architectures | Variant    | Static | Notes                        |
+| ---------------- | ------------- | ---------- | ------ | ---------------------------- |
+| GNU/Linux        | x64           | glibc      | No     | Ubuntu 22.04 (CI)            |
+| GNU/Linux        | aarch64       | glibc      | No     | Ubuntu 22.04 (CI)            |
+| GNU/Linux        | x64           | musl       | Yes    | Alpine Edge (CI)             |
+| GNU/Linux        | aarch64       | musl       | Yes    | Alpine Edge (CI)             |
+| macOS            | x64           | openssl    | No     | macOS 15 (CI)                |
+| macOS            | aarch64       | openssl    | No     | macOS 15 (CI)                |
+| macOS            | x64           | mbedtls    | No     | macOS 15 (CI)                |
+| macOS            | aarch64       | mbedtls    | No     | macOS 15 (CI)                |
+| Windows          | x64           | mingw/msys | No     | MSYS2 MINGW64 toolchain (CI) |
+
+## Supported Toolchains
+
+Ant is built with the GNU C23 standard (`-std=gnu23`). A compiler with C23 support is required.
+
+| Operating System | Compiler Versions                     |
+| ---------------- | ------------------------------------- |
+| Linux            | GCC >= 14 or Clang >= 18              |
+| macOS            | Xcode CLT (Apple Clang) or LLVM >= 18 |
+| Windows          | MinGW-w64 GCC via MSYS2 (MINGW64)     |
+
+## Official Binary Platforms
+
+CI binaries are produced using:
+
+| Binary package             | Platform and Toolchain                       |
+| -------------------------- | -------------------------------------------- |
+| ant-linux-x64              | Ubuntu 22.04 (glibc), LLVM/Clang             |
+| ant-linux-aarch64          | Ubuntu 22.04 (glibc), LLVM/Clang             |
+| ant-linux-x64-musl         | Alpine Edge (musl), statically linked, Clang |
+| ant-linux-aarch64-musl     | Alpine Edge (musl), statically linked, Clang |
+| ant-darwin-x64             | macOS 15 Intel, LLVM/Clang                   |
+| ant-darwin-aarch64         | macOS 15 ARM, LLVM/Clang                     |
+| ant-darwin-x64-mbedtls     | macOS 15 Intel, LLVM/Clang, mbedTLS          |
+| ant-darwin-aarch64-mbedtls | macOS 15 ARM, LLVM/Clang, mbedTLS            |
+| ant-windows-x64            | MSYS2 MINGW64 toolchain                      |
+
+## Prerequisites
+
+The following tools are required to build Ant regardless of platform:
+
+- **C compiler** with C23 support (GCC >= 14 or Clang >= 18)
+- **[Meson](https://mesonbuild.com/)** build system (and Ninja backend)
+- **[CMake](https://cmake.org/)** (for the tlsuv subproject)
+- **pkg-config**
+- **Node.js** >= 22 (used to generate the JS snapshot at build time)
+- **[Rust](https://rustup.rs/)** toolchain (stable) with `cargo` (builds the OXC type-strip library)
+- **[Zig](https://ziglang.org/)** >= 0.15 (builds the package manager component)
+- **Git**
+
+### System Libraries
+
+System libraries required:
+
+- **OpenSSL** (default) or **mbedTLS** (alternative TLS backend)
+- **libsodium**
+- **libuuid** (Linux/macOS)
+- **llhttp** (if not building from source via cmake)
+
+### Vendored Dependencies
+
+The remaining dependencies are vendored as Meson subprojects under `vendor/` and are fetched automatically:
+
+- libuv 1.52.0
+- yyjson 0.12.0
+- zlib-ng 2.3.3
+- nghttp2
+- pcre2
+- libffi
+- lmdb (OpenLDAP LMDB 0.9.33)
+- minicoro
+- argtable3
+- uthash
+- uuidv7
+- tlsuv (cmake subproject)
+
+## Next Steps
+
+Choose your platform to get started:
+
+- [Unix/macOS Build Instructions](/building/unix-macos)
+- [Windows Build Instructions](/building/windows)
+- [Meson Build Options](/building/options)

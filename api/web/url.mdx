@@ -1,0 +1,214 @@
+---
+title: URL and URLSearchParams
+description: Web standard URL parsing and search parameter manipulation APIs
+---
+
+Ant provides the standard `URL` and `URLSearchParams` APIs for parsing and manipulating URLs.
+
+## URL
+
+The `URL` class provides methods for parsing and constructing URLs.
+
+### Constructor
+
+```javascript
+const url = new URL(urlString, baseURL?);
+```
+
+<ParamField path="urlString" type="string" required>
+  The URL string to parse. Can be absolute or relative.
+</ParamField>
+
+<ParamField path="baseURL" type="string | URL">
+  Base URL to resolve relative URLs against.
+</ParamField>
+
+### Properties
+
+The URL object exposes the following properties:
+
+- `href` - The complete URL string
+- `protocol` - The protocol scheme (e.g., "https:")
+- `username` - Username for authentication
+- `password` - Password for authentication
+- `hostname` - The domain name
+- `port` - The port number
+- `host` - Hostname and port combined
+- `pathname` - The path component
+- `search` - The query string (including "?")
+- `hash` - The fragment identifier (including "#")
+- `origin` - The origin (protocol + hostname + port)
+- `searchParams` - A `URLSearchParams` object
+
+### Example
+
+```javascript
+const url = new URL('https://user:pass@example.com:8080/path?query=value#hash');
+
+console.log(url.protocol);  // "https:"
+console.log(url.hostname);  // "example.com"
+console.log(url.port);      // "8080"
+console.log(url.pathname);  // "/path"
+console.log(url.search);    // "?query=value"
+console.log(url.hash);      // "#hash"
+
+// Modify components
+url.pathname = '/newpath';
+url.searchParams.append('key', 'value');
+console.log(url.href);  // Updated URL
+```
+
+### Relative URLs
+
+```javascript
+const base = new URL('https://example.com/dir/');
+const relative = new URL('../other/file.html', base);
+console.log(relative.href);  // "https://example.com/other/file.html"
+```
+
+## URLSearchParams
+
+The `URLSearchParams` class provides utilities for working with URL query strings.
+
+### Constructor
+
+```javascript
+const params = new URLSearchParams(init?);
+```
+
+<ParamField path="init" type="string">
+  Query string to parse (with or without leading "?").
+</ParamField>
+
+### Methods
+
+#### get(name)
+
+Returns the first value associated with the given name.
+
+```javascript
+const params = new URLSearchParams('?key=value1&key=value2');
+console.log(params.get('key'));  // "value1"
+```
+
+#### getAll(name)
+
+Returns all values associated with the given name.
+
+```javascript
+const params = new URLSearchParams('?key=value1&key=value2');
+console.log(params.getAll('key'));  // ["value1", "value2"]
+```
+
+#### has(name)
+
+Checks if a parameter exists.
+
+```javascript
+const params = new URLSearchParams('?key=value');
+console.log(params.has('key'));   // true
+console.log(params.has('other')); // false
+```
+
+#### set(name, value)
+
+Sets the value for a parameter, removing any existing values.
+
+```javascript
+const params = new URLSearchParams('?key=old');
+params.set('key', 'new');
+console.log(params.toString());  // "key=new"
+```
+
+#### append(name, value)
+
+Appends a new value for a parameter without removing existing ones.
+
+```javascript
+const params = new URLSearchParams('?key=value1');
+params.append('key', 'value2');
+console.log(params.toString());  // "key=value1&key=value2"
+```
+
+#### delete(name)
+
+Removes all values for a parameter.
+
+```javascript
+const params = new URLSearchParams('?key=value');
+params.delete('key');
+console.log(params.toString());  // ""
+```
+
+#### toString()
+
+Returns the query string (without leading "?").
+
+```javascript
+const params = new URLSearchParams();
+params.append('name', 'value');
+params.append('foo', 'bar');
+console.log(params.toString());  // "name=value&foo=bar"
+```
+
+### URL Encoding
+
+URLSearchParams automatically handles URL encoding:
+
+```javascript
+const params = new URLSearchParams();
+params.set('message', 'Hello World!');
+console.log(params.toString());  // "message=Hello+World%21"
+```
+
+## Global URI Functions
+
+Ant also provides the standard global URI encoding functions:
+
+### encodeURI()
+
+Encodes a complete URI, preserving reserved characters.
+
+```javascript
+const uri = encodeURI('https://example.com/path?query=hello world');
+// "https://example.com/path?query=hello%20world"
+```
+
+### encodeURIComponent()
+
+Encodes a URI component, encoding all special characters.
+
+```javascript
+const component = encodeURIComponent('hello world & foo=bar');
+// "hello%20world%20%26%20foo%3Dbar"
+```
+
+### decodeURI()
+
+Decodes a URI encoded with `encodeURI()`.
+
+```javascript
+const decoded = decodeURI('https://example.com/path?query=hello%20world');
+// "https://example.com/path?query=hello world"
+```
+
+### decodeURIComponent()
+
+Decodes a URI component encoded with `encodeURIComponent()`.
+
+```javascript
+const decoded = decodeURIComponent('hello%20world%20%26%20foo%3Dbar');
+// "hello world & foo=bar"
+```
+
+### escape() and unescape() (Deprecated)
+
+Ant also implements the deprecated `escape()` and `unescape()` functions for compatibility:
+
+```javascript
+const escaped = escape('Hello World!');
+// "Hello%20World%21"
+
+const unescaped = unescape(escaped);
+// "Hello World!"
+```

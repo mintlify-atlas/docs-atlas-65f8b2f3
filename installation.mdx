@@ -1,0 +1,207 @@
+---
+title: Installation
+description: Install Ant JavaScript runtime on Linux, macOS, and Windows
+---
+
+## Quick install
+
+The fastest way to install Ant is using the official installation script:
+
+```bash
+curl -fsSL https://ant.themackabu.com/install | bash
+```
+
+This will download and install the latest version of Ant for your platform.
+
+### Install with mbedTLS
+
+By default, Ant uses OpenSSL for TLS operations. If you prefer mbedTLS (a lighter alternative), install with:
+
+```bash
+curl -fsSL https://ant.themackabu.com/install | MBEDTLS=1 bash
+```
+
+<Note>
+  mbedTLS is useful for embedded or constrained environments where a smaller binary size is preferred.
+</Note>
+
+## Verify installation
+
+After installation, verify that Ant is working correctly:
+
+<CodeGroup>
+```bash Check version
+ant --version
+```
+
+```bash Run JavaScript
+ant -e "console.log('Hello from Ant ' + Ant.version)"
+```
+</CodeGroup>
+
+You should see the Ant version printed to your terminal.
+
+## Supported platforms
+
+Ant provides official binaries for the following platforms:
+
+<Tabs>
+  <Tab title="Linux">
+    ### Linux (glibc)
+    - **x64** - Ubuntu 22.04 and compatible distributions
+    - **aarch64** - Ubuntu 22.04 ARM64 and compatible distributions
+
+    ### Linux (musl)
+    - **x64** - Alpine Linux and other musl-based distributions (statically linked)
+    - **aarch64** - Alpine Linux ARM64 (statically linked)
+
+    <Note>
+      musl builds are statically linked and don't require any system dependencies.
+    </Note>
+  </Tab>
+
+  <Tab title="macOS">
+    ### macOS Intel (x64)
+    - macOS 15 and later
+    - Available with OpenSSL (default) or mbedTLS
+
+    ### macOS Apple Silicon (aarch64)
+    - macOS 15 and later
+    - Available with OpenSSL (default) or mbedTLS
+
+    <Tip>
+      On macOS, you may need to allow the binary to run in System Preferences if you see a security warning.
+    </Tip>
+  </Tab>
+
+  <Tab title="Windows">
+    ### Windows (x64)
+    - Built with MSYS2 MINGW64 toolchain
+    - Requires bundled DLLs (automatically included in the installer):
+      - `libssl-3-x64.dll`
+      - `libcrypto-3-x64.dll`
+      - `libsodium-26.dll`
+
+    <Warning>
+      Windows builds require the bundled DLLs to be in the same directory as `ant.exe` or in your system PATH.
+    </Warning>
+  </Tab>
+</Tabs>
+
+## Building from source
+
+If you want to build Ant from source or need a custom configuration, see [BUILDING.md](https://github.com/theMackabu/ant/blob/main/BUILDING.md) for detailed instructions.
+
+### Prerequisites for building
+
+Building Ant requires:
+
+- **C compiler** with C23 support (GCC >= 14 or Clang >= 18)
+- **Meson** build system and Ninja backend
+- **CMake** (for subprojects)
+- **Node.js** >= 22 (for generating JS snapshots)
+- **Rust** toolchain (stable)
+- **Zig** >= 0.15
+- **pkg-config**
+- **Git**
+
+System libraries:
+- OpenSSL or mbedTLS
+- libsodium
+- libuuid (Linux/macOS)
+
+### Build steps
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/theMackabu/ant.git
+    cd ant
+    ```
+  </Step>
+
+  <Step title="Download subprojects">
+    ```bash
+    meson subprojects download
+    ```
+  </Step>
+
+  <Step title="Configure the build">
+    ```bash
+    meson setup build
+    ```
+
+    Or for a custom configuration:
+    ```bash
+    meson setup build -Dtls_library=mbedtls -Dstatic_link=true
+    ```
+  </Step>
+
+  <Step title="Compile">
+    ```bash
+    meson compile -C build
+    ```
+  </Step>
+
+  <Step title="Verify the build">
+    ```bash
+    ./build/ant --version
+    ./build/ant -e "console.log('Hello from Ant ' + Ant.version)"
+    ```
+  </Step>
+</Steps>
+
+<Tip>
+  If you have [maid](https://github.com/exact-labs/maid) installed, you can use simplified commands:
+  
+  ```bash
+  maid setup   # downloads subprojects + configures
+  maid build   # compiles
+  maid run <file>  # builds and runs
+  ```
+</Tip>
+
+## Package managers
+
+Currently, Ant is not available through system package managers like Homebrew, apt, or Chocolatey. We recommend using the official installation script.
+
+<Note>
+  Package manager support is planned for future releases. Track progress in the [GitHub repository](https://github.com/theMackabu/ant/issues).
+</Note>
+
+## Updating Ant
+
+To update to the latest version of Ant, simply run the installation script again:
+
+```bash
+curl -fsSL https://ant.themackabu.com/install | bash
+```
+
+This will replace your existing installation with the latest version.
+
+## Uninstalling
+
+To uninstall Ant, remove the binary from your system:
+
+```bash
+# Find where Ant is installed
+which ant
+
+# Remove the binary
+rm $(which ant)
+
+# Also remove antx symlink if present
+rm $(which antx)
+```
+
+The default installation location is `~/.ant/bin/ant`.
+
+## Next steps
+
+<Card
+  title="Quick start"
+  icon="rocket"
+  href="/quickstart"
+>
+  Build your first Ant application
+</Card>

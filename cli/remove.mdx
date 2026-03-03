@@ -1,0 +1,110 @@
+---
+title: ant remove
+description: Remove packages from project dependencies
+---
+
+Remove one or more packages from your project's dependencies.
+
+## Usage
+
+```bash
+ant remove <package>... [options]
+ant rm <package>... [options]
+```
+
+## Parameters
+
+<ParamField path="package" type="string" required>
+  Name of the package to remove. Can specify multiple packages.
+</ParamField>
+
+## Options
+
+<ParamField query="-g, --global" type="boolean">
+  Remove from global packages instead of local.
+</ParamField>
+
+<ParamField query="--verbose" type="boolean">
+  Enable verbose output.
+</ParamField>
+
+<ParamField query="-h, --help" type="boolean">
+  Display help information.
+</ParamField>
+
+## Examples
+
+### Remove a package
+
+```bash
+ant remove lodash
+```
+
+**Output:**
+```
+ant remove v1.0.0 (abc123)
+
+45 packages installed [234ms]
+- Removed: lodash
+```
+
+### Remove multiple packages
+
+```bash
+ant remove express body-parser cors
+```
+
+### Remove from global
+
+```bash
+ant remove -g typescript
+```
+
+**Output:**
+```
+ant remove -g v1.0.0 (abc123)
+
+- Removed globally: typescript
+```
+
+### Package not found
+
+```bash
+ant remove nonexistent-package
+```
+
+**Output:**
+```
+ant remove v1.0.0 (abc123)
+
+[0ms] done
+```
+
+## Behavior
+
+- Removes package from `package.json` dependencies or devDependencies
+- Updates `ant.lockb` lockfile
+- Removes unused dependencies from `node_modules`
+- Re-installs remaining dependencies
+
+## Removing Dependencies vs DevDependencies
+
+Ant automatically detects whether the package is in `dependencies` or `devDependencies` and removes it from the correct section.
+
+## Transitive Dependencies
+
+Removing a package also removes its dependencies if they're not required by other packages:
+
+```bash
+ant remove express
+# Also removes: body-parser, cookie, etc. (if unused)
+```
+
+## Global Removal
+
+Global packages are removed from `~/.ant/pkg/global/node_modules` and their binaries are unlinked from `~/.ant/bin`.
+
+## Related
+
+- [ant add](/cli/add) - Add packages
+- [ant install](/cli/install) - Install dependencies

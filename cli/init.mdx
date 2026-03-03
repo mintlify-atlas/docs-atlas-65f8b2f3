@@ -1,0 +1,91 @@
+---
+title: ant init
+description: Create a new package.json for your project
+---
+
+Initialize a new Node.js project by creating a `package.json` file.
+
+## Usage
+
+```bash
+ant init
+```
+
+## Description
+
+Creates a new `package.json` file in the current directory with interactive prompts. If run non-interactively (e.g., in a CI environment), uses default values.
+
+## Options
+
+<ParamField query="-h, --help" type="boolean">
+  Display help information.
+</ParamField>
+
+## Interactive Prompts
+
+When run in an interactive terminal, `ant init` prompts for:
+
+- **package name**: Defaults to the current directory name
+- **version**: Defaults to `1.0.0`
+- **entry point**: Defaults to `index.js`
+
+## Examples
+
+### Interactive Mode
+
+```bash
+$ ant init
+ant init
+
+package name (my-project): 
+version (1.0.0): 
+entry point (index.js): 
+
++ Created package.json
+```
+
+### Non-Interactive Mode
+
+```bash
+$ ant init
++ Created package.json
+```
+
+## Generated package.json
+
+The created file includes:
+
+```json
+{
+  "name": "my-project",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "ant index.js"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}
+```
+
+## Features
+
+- **ES Modules by Default**: Sets `"type": "module"`
+- **Start Script**: Automatically creates a start script with `ant`
+- **Smart Defaults**: Uses directory name as package name
+- **Non-Interactive Support**: Works in CI/CD pipelines
+
+## Error Handling
+
+If `package.json` already exists:
+
+```bash
+$ ant init
+Error: package.json already exists
+```
+
+## Related
+
+- [ant install](/cli/install) - Install dependencies
+- [ant add](/cli/add) - Add packages to dependencies

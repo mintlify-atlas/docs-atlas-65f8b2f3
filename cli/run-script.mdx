@@ -1,0 +1,161 @@
+---
+title: ant run
+description: Run scripts defined in package.json
+---
+
+Execute scripts defined in the `scripts` section of `package.json`.
+
+## Usage
+
+```bash
+ant run <script> [args...]
+```
+
+## Parameters
+
+<ParamField path="script" type="string" required>
+  Name of the script defined in `package.json` scripts section.
+</ParamField>
+
+<ParamField path="args" type="string[]">
+  Arguments to pass to the script. Can be preceded by `--` for clarity.
+</ParamField>
+
+## Options
+
+<ParamField query="--verbose" type="boolean">
+  Enable verbose output.
+</ParamField>
+
+## Examples
+
+### List available scripts
+
+```bash
+ant run
+```
+
+**Output:**
+```
+Usage: ant run <script> [args...]
+
+Run a script from package.json
+
+Available scripts:
+  start          ant index.js
+  dev            ant --watch src/index.js
+  build          tsc && esbuild src/index.ts --bundle
+  test           jest
+```
+
+### Run a script
+
+```bash
+ant run build
+```
+
+**Output:**
+```
+$ tsc && esbuild src/index.ts --bundle
+Built successfully!
+```
+
+### Run with arguments
+
+```bash
+ant run test -- --coverage --verbose
+```
+
+**Output:**
+```
+$ jest --coverage --verbose
+Test Suites: 3 passed, 3 total
+Tests:       15 passed, 15 total
+```
+
+### Run dev script
+
+```bash
+ant run dev
+```
+
+**Output:**
+```
+$ ant --watch src/index.js
+Server started on port 3000
+```
+
+## Script Definition
+
+Define scripts in `package.json`:
+
+```json
+{
+  "scripts": {
+    "start": "ant index.js",
+    "dev": "ant --watch src/index.js",
+    "build": "tsc",
+    "test": "jest",
+    "lint": "eslint src/**/*.js",
+    "format": "prettier --write ."
+  }
+}
+```
+
+## Script Environment
+
+### node_modules/.bin in PATH
+
+Scripts automatically have access to binaries in `node_modules/.bin`:
+
+```json
+{
+  "scripts": {
+    "build": "tsc",  // Uses node_modules/.bin/tsc
+    "lint": "eslint src"  // Uses node_modules/.bin/eslint
+  }
+}
+```
+
+### Environment Variables
+
+Scripts have access to:
+- `npm_package_*` variables with package.json values
+- `PATH` includes `node_modules/.bin`
+
+## Exit Codes
+
+The exit code from the script is propagated:
+
+```bash
+ant run test
+# Exit code matches the test runner's exit code
+```
+
+## Shorthand
+
+You can also run scripts without the `run` command:
+
+```bash
+ant start
+# Equivalent to: ant run start
+```
+
+This works when the script name doesn't conflict with Ant commands.
+
+## Script Not Found
+
+```bash
+ant run nonexistent
+```
+
+**Output:**
+```
+Error: script 'nonexistent' not found in package.json
+Try 'ant run' to list available scripts.
+```
+
+## Related
+
+- [ant exec](/cli/exec) - Run commands from node_modules/.bin
+- [ant file](/cli/run) - Run JavaScript files directly

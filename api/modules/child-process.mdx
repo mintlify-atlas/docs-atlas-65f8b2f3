@@ -1,0 +1,277 @@
+---
+title: 'ant:child-process'
+description: 'Spawn and manage child processes'
+---
+
+The `ant:child-process` module provides the ability to spawn child processes.
+
+## Import
+
+```javascript
+import { spawn, exec, execSync } from 'ant:child-process';
+```
+
+## Functions
+
+### spawn()
+
+Spawns a new process with the given command.
+
+```javascript
+const child = spawn(command, args, options);
+```
+
+<ParamField path="command" type="string" required>
+  The command to run
+</ParamField>
+
+<ParamField path="args" type="Array<string>" optional>
+  Arguments to pass to the command
+</ParamField>
+
+<ParamField path="options" type="object" optional>
+  Spawn options
+</ParamField>
+
+**Options:**
+- `cwd` (string) - Working directory
+- `env` (object) - Environment variables
+- `shell` (boolean) - Run command in a shell
+- `detached` (boolean) - Detach the child process
+
+<ResponseField name="return" type="ChildProcess">
+  A ChildProcess object
+</ResponseField>
+
+## ChildProcess
+
+The ChildProcess object represents a spawned child process.
+
+### Properties
+
+<ResponseField name="pid" type="number">
+  Process ID of the child process
+</ResponseField>
+
+<ResponseField name="exitCode" type="number | null">
+  Exit code if process has exited
+</ResponseField>
+
+<ResponseField name="signalCode" type="number | null">
+  Signal that terminated the process
+</ResponseField>
+
+<ResponseField name="killed" type="boolean">
+  Whether the process was killed by a signal
+</ResponseField>
+
+<ResponseField name="stdin" type="WritableStream">
+  Writable stream for stdin
+</ResponseField>
+
+<ResponseField name="stdout" type="ReadableStream">
+  Readable stream for stdout
+</ResponseField>
+
+<ResponseField name="stderr" type="ReadableStream">
+  Readable stream for stderr
+</ResponseField>
+
+### Methods
+
+#### kill()
+
+Sends a signal to the child process.
+
+```javascript
+const killed = child.kill(signal);
+```
+
+<ParamField path="signal" type="string | number" default="SIGTERM">
+  Signal to send (e.g., 'SIGTERM', 'SIGKILL', 'SIGINT')
+</ParamField>
+
+<ResponseField name="return" type="boolean">
+  True if signal was sent successfully
+</ResponseField>
+
+#### on()
+
+Adds an event listener.
+
+```javascript
+child.on(event, listener);
+```
+
+<ParamField path="event" type="string" required>
+  Event name ('exit', 'close', 'error', 'stdout', 'stderr')
+</ParamField>
+
+<ParamField path="listener" type="function" required>
+  Event listener function
+</ParamField>
+
+#### once()
+
+Adds a one-time event listener.
+
+```javascript
+child.once(event, listener);
+```
+
+#### write()
+
+Writes data to the child's stdin.
+
+```javascript
+child.write(data);
+```
+
+<ParamField path="data" type="string | Uint8Array" required>
+  Data to write
+</ParamField>
+
+#### end()
+
+Ends the stdin stream.
+
+```javascript
+child.end();
+```
+
+#### ref()
+
+Keeps the event loop running for this child process.
+
+```javascript
+child.ref();
+```
+
+#### unref()
+
+Allows the event loop to exit even if this child is still running.
+
+```javascript
+child.unref();
+```
+
+### Events
+
+#### exit
+
+Emitted when the child process exits.
+
+```javascript
+child.on('exit', (code, signal) => {
+  console.log('Process exited with code', code);
+});
+```
+
+#### close
+
+Emitted when all stdio streams have closed.
+
+```javascript
+child.on('close', (code, signal) => {
+  console.log('Process closed');
+});
+```
+
+#### error
+
+Emitted when the process could not be spawned or killed.
+
+```javascript
+child.on('error', (err) => {
+  console.error('Failed to start child process:', err);
+});
+```
+
+#### stdout
+
+Emitted when data is received from stdout (as string).
+
+```javascript
+child.on('stdout', (data) => {
+  console.log('stdout:', data);
+});
+```
+
+#### stderr
+
+Emitted when data is received from stderr (as string).
+
+```javascript
+child.on('stderr', (data) => {
+  console.error('stderr:', data);
+});
+```
+
+### Stream Events
+
+The stdin, stdout, and stderr streams also support events:
+
+```javascript
+child.stdout.on('data', (chunk) => {
+  console.log('Received chunk:', chunk);
+});
+
+child.stdout.on('end', () => {
+  console.log('stdout stream ended');
+});
+
+child.stderr.on('data', (chunk) => {
+  console.error('Error output:', chunk);
+});
+```
+
+## Example
+
+```javascript
+import { spawn } from 'ant:child-process';
+
+// Spawn a child process
+const child = spawn('ls', ['-la'], {
+  cwd: '/tmp'
+});
+
+console.log('Spawned process with PID:', child.pid);
+
+// Listen for stdout data
+child.on('stdout', (data) => {
+  console.log('Output:', data);
+});
+
+// Listen for stderr data
+child.on('stderr', (data) => {
+  console.error('Error:', data);
+});
+
+// Listen for exit
+child.on('exit', (code, signal) => {
+  if (code !== 0) {
+    console.error('Process exited with code', code);
+  }
+});
+
+// Listen for close (all streams closed)
+child.on('close', (code) => {
+  console.log('Process closed');
+});
+
+// Write to stdin
+child.stdin.write('input data\n');
+child.stdin.end();
+
+// Using stream events
+const grep = spawn('grep', ['error']);
+
+grep.stdout.on('data', (chunk) => {
+  console.log('Found:', chunk.toString());
+});
+
+grep.stdin.write('no error here\n');
+grep.stdin.write('this has error\n');
+grep.stdin.write('nothing wrong\n');
+grep.stdin.end();
+```

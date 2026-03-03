@@ -1,0 +1,188 @@
+---
+title: Package Manager Overview
+description: High-performance package manager built into Ant with native speed and npm compatibility
+---
+
+Ant includes a built-in package manager that provides npm-compatible package management with significantly faster installation speeds and a more secure approach to lifecycle scripts.
+
+## Key Features
+
+### Native Performance
+
+Ant's package manager is written in Zig and C, providing:
+
+- **Fast installs** - Parallel fetching and linking with optimized caching
+- **Binary lockfile** - `ant.lockb` format with memory-mapped access for instant reads
+- **Efficient linking** - Hardlinks on Unix, optimized copies on Windows
+- **Smart caching** - LMDB-based cache database with integrity verification
+
+### Security First
+
+Unlike npm, Ant requires explicit trust before running lifecycle scripts:
+
+```bash
+# Scripts won't run automatically
+ant install  # Shows packages needing trust
+
+# Explicitly trust packages
+ant trust lodash
+ant trust --all
+```
+
+Trusted packages are added to `trustedDependencies` in your `package.json`.
+
+### npm Compatibility
+
+Ant works with the npm ecosystem:
+
+- Reads standard `package.json` files
+- Fetches from npm registry by default
+- Supports npm version ranges and semver
+- Compatible with npm package structure
+
+## Installation Workflow
+
+When you run `ant install` or `ant add`, the package manager:
+
+1. **Resolves** - Reads `package.json` and resolves dependency tree
+2. **Fetches** - Downloads missing packages in parallel (up to 6 connections)
+3. **Extracts** - Unpacks tarballs to cache directory
+4. **Links** - Creates `node_modules` with hardlinks to cached packages
+5. **Writes lockfile** - Generates binary `ant.lockb` with exact versions
+
+## Cache Architecture
+
+### Cache Location
+
+```
+~/.ant/pkg/
+├── cache/          # Extracted package contents
+├── index.lmdb      # LMDB cache database
+└── global/         # Global package installations
+    └── node_modules/
+```
+
+### Cache Database
+
+Ant uses LMDB (Lightning Memory-Mapped Database) to track:
+
+- **Primary index** - Lookup by integrity hash (SHA-512)
+- **Secondary index** - Lookup by name@version
+- **Metadata cache** - Registry responses with 24-hour TTL
+
+### Cache Operations
+
+```bash
+ant cache info              # Show cache statistics
+ant cache prune 30          # Remove packages older than 30 days
+ant cache sync              # Flush database to disk
+```
+
+## Lockfile Format
+
+The `ant.lockb` binary lockfile uses a custom format:
+
+```
+Header (128 bytes)
+├── magic: 0x504B474C
+├── version: 1
+├── package_count
+└── offsets to sections
+
+Package Array
+├── name (string ref)
+├── version (major.minor.patch)
+├── integrity (SHA-512)
+├── tarball_url
+├── dependencies
+└── flags (dev, optional, peer, etc.)
+
+Dependency Array
+├── package_index
+├── constraint
+└── flags
+
+String Table (interned strings)
+Hash Table (package name lookup)
+```
+
+See the [Lockfile documentation](/package-manager/lockfile) for details.
+
+## Global Packages
+
+Install packages globally with the `-g` flag:
+
+```bash
+ant add -g typescript    # Install globally
+ant remove -g typescript # Remove global package
+ant ls -g                # List global packages
+```
+
+Global packages are installed to `~/.ant/pkg/global/node_modules/` and binaries are symlinked to `~/.ant/bin/`.
+
+## Command Overview
+
+| Command | Alias | Description |
+|---------|-------|-------------|
+| `init` | - | Create a new package.json |
+| `install` | `i` | Install dependencies from lockfile |
+| `add` | `a` | Add packages to dependencies |
+| `remove` | `rm` | Remove packages from dependencies |
+| `update` | `up` | Re-resolve and update dependencies |
+| `run` | - | Run package.json scripts |
+| `exec` | `x` | Run binaries from node_modules/.bin |
+| `why` | `explain` | Show why a package is installed |
+| `info` | - | Show package information from registry |
+| `ls` | `list` | List installed packages |
+| `trust` | - | Run lifecycle scripts for packages |
+| `cache` | - | Manage the package cache |
+| `create` | - | Scaffold project from template |
+
+See the [Commands reference](/package-manager/commands) for detailed usage.
+
+## Progress Reporting
+
+Ant displays real-time progress during installs:
+
+```
+ant install
+🔍 Resolving [3/3]
+🚚 Fetching lodash@4.17.21 [12/15]
+📦 Extracting packages [12/15]
+🔗 Linking files [523/523]
+
++ lodash@4.17.21
++ express@4.18.2
++ typescript@5.3.3
+
+3 packages installed (12 cached) [1.2s]
+```
+
+Progress indicators:
+- 🔍 Resolving - Reading lockfile and resolving versions
+- 🚚 Fetching - Downloading tarballs from registry
+- 📦 Extracting - Unpacking tarballs to cache
+- 🔗 Linking - Creating node_modules structure
+- 💾 Caching - Writing to cache database
+- ⚙️  Postinstall - Running lifecycle scripts
+
+## Verbose Mode
+
+Enable detailed logging with `--verbose`:
+
+```bash
+ant install --verbose
+ant add lodash --verbose
+```
+
+This shows:
+- Cache hits and misses
+- HTTP requests and responses
+- File operations
+- Timing information
+
+## Next Steps
+
+- [Commands Reference](/package-manager/commands) - Complete CLI command documentation
+- [Configuration](/package-manager/configuration) - package.json configuration options
+- [Lockfile Format](/package-manager/lockfile) - Binary lockfile specification

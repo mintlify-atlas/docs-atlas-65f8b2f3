@@ -1,0 +1,298 @@
+---
+title: 'ant:lmdb'
+description: 'Lightning Memory-Mapped Database bindings'
+---
+
+The `ant:lmdb` module provides bindings to LMDB, a high-performance embedded database.
+
+## Import
+
+```javascript
+import { open } from 'ant:lmdb';
+```
+
+## Functions
+
+### open()
+
+Opens an LMDB environment.
+
+```javascript
+const env = open(path, options);
+```
+
+<ParamField path="path" type="string" required>
+  Path to the database directory
+</ParamField>
+
+<ParamField path="options" type="object" optional>
+  Environment options
+</ParamField>
+
+**Options:**
+- `readOnly` (boolean) - Open in read-only mode
+- `noSubdir` (boolean) - Database is a file, not a directory
+- `noSync` (boolean) - Don't fsync after commit
+- `noMetaSync` (boolean) - Don't fsync metadata
+- `noReadAhead` (boolean) - Disable readahead
+- `noLock` (boolean) - Don't use locks (single process)
+- `writeMap` (boolean) - Use writable mmap
+- `mapAsync` (boolean) - Async msync with writeMap
+- `mapSize` (number) - Maximum database size in bytes
+- `maxReaders` (number) - Maximum number of read-only transactions
+- `maxDbs` (number) - Maximum number of named databases
+- `mode` (number) - Unix file permissions (default: 0644)
+
+<ResponseField name="return" type="Environment">
+  LMDB environment object
+</ResponseField>
+
+## Environment Object
+
+### openDb()
+
+Opens a named database within the environment.
+
+```javascript
+const db = env.openDb(name, options);
+```
+
+<ParamField path="name" type="string" optional>
+  Database name (omit for default database)
+</ParamField>
+
+<ParamField path="options" type="object" optional>
+  Database options
+</ParamField>
+
+**Options:**
+- `create` (boolean) - Create database if it doesn't exist
+- `dupSort` (boolean) - Allow duplicate keys
+- `dupFixed` (boolean) - Duplicate items are fixed size
+- `integerKey` (boolean) - Keys are binary integers
+- `integerDup` (boolean) - Duplicate data items are binary integers
+
+<ResponseField name="return" type="Database">
+  Database object
+</ResponseField>
+
+### beginTxn()
+
+Begins a transaction.
+
+```javascript
+const txn = env.beginTxn(options);
+```
+
+<ParamField path="options" type="object" optional>
+  Transaction options
+</ParamField>
+
+**Options:**
+- `readOnly` (boolean) - Read-only transaction
+
+<ResponseField name="return" type="Transaction">
+  Transaction object
+</ResponseField>
+
+### close()
+
+Closes the environment.
+
+```javascript
+env.close();
+```
+
+### sync()
+
+Flushes data buffers to disk.
+
+```javascript
+env.sync(force);
+```
+
+<ParamField path="force" type="boolean" default="false">
+  Force synchronous flush
+</ParamField>
+
+## Database Object
+
+### get()
+
+Gets a value by key.
+
+```javascript
+const value = db.get(txn, key, encoding);
+```
+
+<ParamField path="txn" type="Transaction" required>
+  Transaction to use
+</ParamField>
+
+<ParamField path="key" type="string | Uint8Array" required>
+  Key to retrieve
+</ParamField>
+
+<ParamField path="encoding" type="string" optional>
+  'utf8' for string or 'bytes' for Uint8Array (default: 'utf8')
+</ParamField>
+
+<ResponseField name="return" type="string | Uint8Array | undefined">
+  Value for the key, or undefined if not found
+</ResponseField>
+
+### put()
+
+Sets a value for a key.
+
+```javascript
+db.put(txn, key, value);
+```
+
+<ParamField path="txn" type="Transaction" required>
+  Write transaction to use
+</ParamField>
+
+<ParamField path="key" type="string | Uint8Array" required>
+  Key to set
+</ParamField>
+
+<ParamField path="value" type="string | Uint8Array" required>
+  Value to store
+</ParamField>
+
+### del()
+
+Deletes a key.
+
+```javascript
+db.del(txn, key);
+```
+
+<ParamField path="txn" type="Transaction" required>
+  Write transaction to use
+</ParamField>
+
+<ParamField path="key" type="string | Uint8Array" required>
+  Key to delete
+</ParamField>
+
+### close()
+
+Closes the database.
+
+```javascript
+db.close();
+```
+
+## Transaction Object
+
+### commit()
+
+Commits the transaction.
+
+```javascript
+txn.commit();
+```
+
+### abort()
+
+Aborts the transaction.
+
+```javascript
+txn.abort();
+```
+
+### reset()
+
+Resets a read-only transaction.
+
+```javascript
+txn.reset();
+```
+
+### renew()
+
+Renews a reset read-only transaction.
+
+```javascript
+txn.renew();
+```
+
+## Example
+
+```javascript
+import { open } from 'ant:lmdb';
+
+// Open environment
+const env = open('./mydb', {
+  mapSize: 10 * 1024 * 1024, // 10MB
+  maxDbs: 10
+});
+
+// Open database
+const db = env.openDb('users', { create: true });
+
+// Write transaction
+const writeTxn = env.beginTxn();
+try {
+  db.put(writeTxn, 'user:1', JSON.stringify({
+    id: 1,
+    name: 'Alice',
+    email: 'alice@example.com'
+  }));
+  
+  db.put(writeTxn, 'user:2', JSON.stringify({
+    id: 2,
+    name: 'Bob',
+    email: 'bob@example.com'
+  }));
+  
+  writeTxn.commit();
+} catch (err) {
+  writeTxn.abort();
+  throw err;
+}
+
+// Read transaction
+const readTxn = env.beginTxn({ readOnly: true });
+try {
+  const data = db.get(readTxn, 'user:1');
+  if (data) {
+    const user = JSON.parse(data);
+    console.log('User:', user.name);
+  }
+  readTxn.commit();
+} catch (err) {
+  readTxn.abort();
+  throw err;
+}
+
+// Clean up
+db.close();
+env.close();
+```
+
+## Binary Data Example
+
+```javascript
+import { open } from 'ant:lmdb';
+
+const env = open('./bindb');
+const db = env.openDb('binary', { create: true });
+
+// Write binary data
+const txn = env.beginTxn();
+const buffer = new Uint8Array([1, 2, 3, 4, 5]);
+db.put(txn, 'data', buffer);
+txn.commit();
+
+// Read as bytes
+const readTxn = env.beginTxn({ readOnly: true });
+const bytes = db.get(readTxn, 'data', 'bytes');
+console.log('Bytes:', bytes); // Uint8Array
+readTxn.commit();
+
+db.close();
+env.close();
+```

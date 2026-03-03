@@ -1,0 +1,261 @@
+---
+title: 'ant:events'
+description: 'Event emitter and event target implementation'
+---
+
+The `ant:events` module provides the EventEmitter class and global event handling.
+
+## Import
+
+```javascript
+import { EventEmitter } from 'ant:events';
+```
+
+## EventEmitter
+
+The EventEmitter class implements the Node.js-style event emitter pattern.
+
+### Constructor
+
+```javascript
+const emitter = new EventEmitter();
+```
+
+### Methods
+
+#### on()
+
+Adds a listener for the specified event.
+
+```javascript
+emitter.on(event, listener);
+```
+
+<ParamField path="event" type="string" required>
+  The event name
+</ParamField>
+
+<ParamField path="listener" type="function" required>
+  The callback function
+</ParamField>
+
+<ResponseField name="return" type="EventEmitter">
+  Returns the emitter for chaining
+</ResponseField>
+
+#### once()
+
+Adds a one-time listener for the specified event.
+
+```javascript
+emitter.once(event, listener);
+```
+
+<ParamField path="event" type="string" required>
+  The event name
+</ParamField>
+
+<ParamField path="listener" type="function" required>
+  The callback function
+</ParamField>
+
+<ResponseField name="return" type="EventEmitter">
+  Returns the emitter for chaining
+</ResponseField>
+
+#### off()
+
+Removes a listener from the specified event.
+
+```javascript
+emitter.off(event, listener);
+```
+
+<ParamField path="event" type="string" required>
+  The event name
+</ParamField>
+
+<ParamField path="listener" type="function" required>
+  The callback function to remove
+</ParamField>
+
+<ResponseField name="return" type="EventEmitter">
+  Returns the emitter for chaining
+</ResponseField>
+
+#### emit()
+
+Emits an event with the given arguments.
+
+```javascript
+const emitted = emitter.emit(event, ...args);
+```
+
+<ParamField path="event" type="string" required>
+  The event name
+</ParamField>
+
+<ParamField path="args" type="any" optional>
+  Arguments to pass to listeners
+</ParamField>
+
+<ResponseField name="return" type="boolean">
+  Returns true if the event had listeners
+</ResponseField>
+
+#### removeAllListeners()
+
+Removes all listeners for the specified event.
+
+```javascript
+emitter.removeAllListeners(event);
+```
+
+<ParamField path="event" type="string" optional>
+  The event name (removes all events if omitted)
+</ParamField>
+
+<ResponseField name="return" type="EventEmitter">
+  Returns the emitter for chaining
+</ResponseField>
+
+#### listenerCount()
+
+Returns the number of listeners for an event.
+
+```javascript
+const count = emitter.listenerCount(event);
+```
+
+<ParamField path="event" type="string" required>
+  The event name
+</ParamField>
+
+<ResponseField name="return" type="number">
+  Number of listeners
+</ResponseField>
+
+#### eventNames()
+
+Returns an array of event names with registered listeners.
+
+```javascript
+const names = emitter.eventNames();
+```
+
+<ResponseField name="return" type="Array<string>">
+  Array of event names
+</ResponseField>
+
+### Aliases
+
+- `addListener()` - Alias for `on()`
+- `removeListener()` - Alias for `off()`
+
+## EventTarget
+
+Global EventTarget constructor for DOM-style event handling.
+
+### Constructor
+
+```javascript
+const target = new EventTarget();
+```
+
+### Methods
+
+#### addEventListener()
+
+```javascript
+target.addEventListener(type, listener, options);
+```
+
+<ParamField path="type" type="string" required>
+  The event type
+</ParamField>
+
+<ParamField path="listener" type="function" required>
+  The event listener
+</ParamField>
+
+<ParamField path="options" type="object" optional>
+  Options object with `once` property
+</ParamField>
+
+#### removeEventListener()
+
+```javascript
+target.removeEventListener(type, listener);
+```
+
+<ParamField path="type" type="string" required>
+  The event type
+</ParamField>
+
+<ParamField path="listener" type="function" required>
+  The event listener to remove
+</ParamField>
+
+#### dispatchEvent()
+
+```javascript
+const dispatched = target.dispatchEvent(type, detail);
+```
+
+<ParamField path="type" type="string" required>
+  The event type
+</ParamField>
+
+<ParamField path="detail" type="any" optional>
+  Custom event data
+</ParamField>
+
+<ResponseField name="return" type="boolean">
+  Returns true if event was dispatched
+</ResponseField>
+
+## Global Functions
+
+These functions are available globally for window-style event handling:
+
+```javascript
+addEventListener(type, listener, options);
+removeEventListener(type, listener);
+dispatchEvent(type, detail);
+getEventListeners(); // Returns all registered global listeners
+```
+
+## Example
+
+```javascript
+import { EventEmitter } from 'ant:events';
+
+// Create an emitter
+const emitter = new EventEmitter();
+
+// Add listeners
+emitter.on('data', (data) => {
+  console.log('Data received:', data);
+});
+
+emitter.once('end', () => {
+  console.log('Stream ended');
+});
+
+// Emit events
+emitter.emit('data', { value: 123 });
+emitter.emit('data', { value: 456 });
+emitter.emit('end');
+
+// Check listener count
+console.log('Listeners:', emitter.listenerCount('data'));
+
+// EventTarget example
+const target = new EventTarget();
+
+target.addEventListener('custom', (event) => {
+  console.log('Custom event:', event.detail);
+}, { once: true });
+
+target.dispatchEvent('custom', { message: 'Hello!' });
+```
